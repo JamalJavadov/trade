@@ -1,0 +1,1 @@
+ALTER TABLE ai_suggestion_batch RENAME COLUMN based_on_last_n_trades TO based_on_lastntrades;

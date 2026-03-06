@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.AiModelSettingsServiceTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-03-01T11:52:34" hostname="CamaltekiMacBook-Pro.local" time="0.052">
+  <properties/>
+  <testcase name="resolveRouteUsesProviderRouting()" classname="com.tradebot.AiModelSettingsServiceTest" time="0.047"/>
+  <testcase name="getDemoSettingsIncludesLastCallTelemetry()" classname="com.tradebot.AiModelSettingsServiceTest" time="0.001"/>
+  <testcase name="updateLiveSettingsRejectsUnknownModel()" classname="com.tradebot.AiModelSettingsServiceTest" time="0.002"/>
+  <testcase name="updateLiveSettingsPersistsPatch()" classname="com.tradebot.AiModelSettingsServiceTest" time="0.001"/>
+  <testcase name="getLiveSettingsIncludesLastCallTelemetry()" classname="com.tradebot.AiModelSettingsServiceTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

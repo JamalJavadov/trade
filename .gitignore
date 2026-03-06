@@ -1,0 +1,6 @@
+# Anti-Gravity local artifacts
+.agent/.cache/
+.agent/.tmp/
+.agent/.state/
+docs/.drafts/
+docs/_scratch/

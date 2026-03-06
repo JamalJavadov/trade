@@ -1,0 +1,48 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/trade-bot
+    username: postgres
+    password: Cavadov15.
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 5000
+      validation-timeout: 2000
+      initialization-fail-timeout: -1
+      maximum-pool-size: 10
+      minimum-idle: 1
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: none
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        temp:
+          use_jdbc_metadata_defaults: false
+
+app:
+  binance:
+    api-key: "DHdRtlUrUrPUlynR6Pbdij9TK95518M0fV6OoaoBtC691wLigpXuWN0sb3huHcn0"
+    api-secret: "8u4bgfjXadvqBbivGmvTxxj8uU9gnM7g84r0eKlMrfq7X5WwC2kZ8I0tjmsrGokg"
+
+ai:
+  openrouter:
+    api-key: "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"
+
+# Demo Binance keys are read-only for market-data endpoints.
+demo-trading:
+  binance:
+    api-key: "X7vh535qunvVjhTGOcjHxJKfT8NSnDIWNWUkIzpfsgAVYDEOyDbBMz6ZVuHA7mjZ"
+    api-secret: "VZ59RFXHZ1bpwqQ5pPPj9PjCjUSdfDXysuednAbuteAqqwTvIwBK9yJ9G6CR0ENr"
+
+server:
+  port: 8080
+  error:
+    whitelabel:
+      enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.tradebot: INFO

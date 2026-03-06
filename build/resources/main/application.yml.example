@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/trade-bot
+    username: trade-bot
+    password: tradebot-local-password
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 5000
+      validation-timeout: 2000
+      initialization-fail-timeout: -1
+      maximum-pool-size: 10
+      minimum-idle: 1
+
+app:
+  binance:
+    api-key: ""
+    api-secret: ""
+  scanner:
+    exchange-info-max-in-memory-bytes: 2097152
+
+ai:
+  openrouter:
+    api-key: ""
+
+# Demo Binance keys are read-only for market-data endpoints.
+demo-trading:
+  binance:
+    api-key: ""
+    api-secret: ""
+
+server:
+  port: 8080
+
+logging:
+  level:
+    root: INFO
+    com.tradebot: INFO

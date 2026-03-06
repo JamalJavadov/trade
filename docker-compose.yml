@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: trade-bot-db
+    environment:
+      POSTGRES_DB: ${TRADEBOT_DB_NAME:trade-bot}
+      POSTGRES_USER: ${TRADEBOT_DB_USERNAME:trade-bot}
+      POSTGRES_PASSWORD: ${TRADEBOT_DB_PASSWORD:tradebot-local-password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  pgdata:

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.OperatorPermissionEnforcementWebMvcTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-01T11:52:35" hostname="CamaltekiMacBook-Pro.local" time="0.003">
+  <properties/>
+  <testcase name="disabledPermissionBlocksEndpointWithForbiddenPermissionError()" classname="com.tradebot.OperatorPermissionEnforcementWebMvcTest" time="0.003"/>
+  <system-out><![CDATA[2026-03-01T15:52:35.481+04:00  INFO 64082 --- [trade-bot] [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.OperatorPermissionEnforcementWebMvcTest]: OperatorPermissionEnforcementWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-01T15:52:35.483+04:00  INFO 64082 --- [trade-bot] [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.OperatorPermissionEnforcementWebMvcTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.4)
+
+2026-03-01T15:52:35.491+04:00  INFO 64082 --- [trade-bot] [    Test worker] .OperatorPermissionEnforcementWebMvcTest : Starting OperatorPermissionEnforcementWebMvcTest using Java 21.0.9 with PID 64082 (started by camal in /Users/camal/Documents/trade/trade bot)
+2026-03-01T15:52:35.491+04:00  INFO 64082 --- [trade-bot] [    Test worker] .OperatorPermissionEnforcementWebMvcTest : No active profile set, falling back to 1 default profile: "default"
+2026-03-01T15:52:35.604+04:00  INFO 64082 --- [trade-bot] [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-01T15:52:35.604+04:00  INFO 64082 --- [trade-bot] [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-01T15:52:35.604+04:00  INFO 64082 --- [trade-bot] [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-01T15:52:35.606+04:00  INFO 64082 --- [trade-bot] [    Test worker] .OperatorPermissionEnforcementWebMvcTest : Started OperatorPermissionEnforcementWebMvcTest in 0.122 seconds (process running for 3.382)
+2026-03-01T15:52:35.607+04:00  WARN 64082 --- [trade-bot] [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: de67b17d-f33a-4bb7-ba47-f528244b15c6] Forbidden permission at /api/v1/scans/run-once: permission=scan.run_once
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
