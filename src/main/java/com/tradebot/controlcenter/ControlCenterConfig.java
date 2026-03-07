@@ -19,6 +19,7 @@ public class ControlCenterConfig {
     private Alerts alerts = new Alerts();
     private Ai ai = new Ai();
     private DemoTrading demoTrading = new DemoTrading();
+    private LiveExecution liveExecution = new LiveExecution();
     private StrategyLocks strategyLocks = new StrategyLocks();
 
     public void ensureDefaults() {
@@ -40,6 +41,9 @@ public class ControlCenterConfig {
         if (demoTrading == null) {
             demoTrading = new DemoTrading();
         }
+        if (liveExecution == null) {
+            liveExecution = new LiveExecution();
+        }
         if (strategyLocks == null) {
             strategyLocks = new StrategyLocks();
         }
@@ -47,6 +51,7 @@ public class ControlCenterConfig {
         alerts.ensureDefaults();
         ai.ensureDefaults();
         demoTrading.ensureDefaults();
+        liveExecution.ensureDefaults();
         strategyLocks.ensureDefaults();
     }
 
@@ -132,6 +137,7 @@ public class ControlCenterConfig {
         private TaskRouting suggestion = new TaskRouting();
         private TaskRouting explainability = new TaskRouting();
         private TaskRouting vision = new TaskRouting();
+        private TaskRouting scanReview = new TaskRouting();
 
         public void ensureDefaults() {
             if (suggestion == null) {
@@ -143,9 +149,13 @@ public class ControlCenterConfig {
             if (vision == null) {
                 vision = new TaskRouting();
             }
+            if (scanReview == null) {
+                scanReview = new TaskRouting();
+            }
             suggestion.ensureDefaults();
             explainability.ensureDefaults();
             vision.ensureDefaults();
+            scanReview.ensureDefaults();
         }
     }
 
@@ -198,6 +208,15 @@ public class ControlCenterConfig {
             if (slippageBps < 0) {
                 slippageBps = 0;
             }
+        }
+    }
+
+    @Data
+    public static class LiveExecution {
+        private boolean readOnly = false;
+
+        public void ensureDefaults() {
+            // default false keeps manual execution available when capability is enabled
         }
     }
 

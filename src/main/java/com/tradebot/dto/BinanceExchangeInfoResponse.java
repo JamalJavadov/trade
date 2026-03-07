@@ -42,12 +42,46 @@ public class BinanceExchangeInfoResponse {
             return BigDecimal.ZERO;
         }
 
+        public BigDecimal getMarketStepSize() {
+            if (filters == null)
+                return BigDecimal.ZERO;
+            for (Filter f : filters) {
+                if ("MARKET_LOT_SIZE".equals(f.getFilterType())) {
+                    return f.getStepSize() != null ? new BigDecimal(f.getStepSize()) : BigDecimal.ZERO;
+                }
+            }
+            return BigDecimal.ZERO;
+        }
+
         public BigDecimal getMinQty() {
             if (filters == null)
                 return BigDecimal.ZERO;
             for (Filter f : filters) {
                 if ("LOT_SIZE".equals(f.getFilterType())) {
                     return f.getMinQty() != null ? new BigDecimal(f.getMinQty()) : BigDecimal.ZERO;
+                }
+            }
+            return BigDecimal.ZERO;
+        }
+
+        public BigDecimal getMarketMinQty() {
+            if (filters == null)
+                return BigDecimal.ZERO;
+            for (Filter f : filters) {
+                if ("MARKET_LOT_SIZE".equals(f.getFilterType())) {
+                    return f.getMinQty() != null ? new BigDecimal(f.getMinQty()) : BigDecimal.ZERO;
+                }
+            }
+            return BigDecimal.ZERO;
+        }
+
+        public BigDecimal getMinNotional() {
+            if (filters == null)
+                return BigDecimal.ZERO;
+            for (Filter f : filters) {
+                if ("MIN_NOTIONAL".equals(f.getFilterType()) || "NOTIONAL".equals(f.getFilterType())) {
+                    String value = f.getNotional() != null ? f.getNotional() : f.getMinNotional();
+                    return value != null ? new BigDecimal(value) : BigDecimal.ZERO;
                 }
             }
             return BigDecimal.ZERO;
@@ -61,5 +95,7 @@ public class BinanceExchangeInfoResponse {
         private String tickSize;
         private String stepSize;
         private String minQty;
+        private String minNotional;
+        private String notional;
     }
 }

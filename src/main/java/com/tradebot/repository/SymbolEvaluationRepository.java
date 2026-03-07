@@ -27,4 +27,10 @@ public interface SymbolEvaluationRepository extends JpaRepository<SymbolEvaluati
     long countByScanRunIdAndDecision(UUID scanRunId, String decision);
 
     long countByScanRunId(UUID scanRunId);
+
+    long countByScanRunIdAndRecommendationEligibleTrue(UUID scanRunId);
+
+    long countByScanRunIdAndConflictStateIsNotNull(UUID scanRunId);
+
+    long countByScanRunIdAndSkipReasonCode(UUID scanRunId, String skipReasonCode);
 }

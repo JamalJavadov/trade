@@ -108,7 +108,7 @@ class ControlCenterControllerWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"settingsPatch\":{\"scan\":{\"intervalMinutes\":10}}}"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("FORBIDDEN_NOT_LOCAL"));
+                .andExpect(jsonPath("$.errorCode").value("LOCAL_MUTATION_BLOCKED"));
     }
 
     private ControlCenterConfig baseConfig() {

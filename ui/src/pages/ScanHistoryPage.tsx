@@ -3,11 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { getHistoricalScans } from '../api/scan';
 import type { Page, ScanSummaryDTO } from '../types/scan';
 import { Play } from 'lucide-react';
+import { Banner } from '../components/Banner';
+
+function normalizeScanStatus(status: string): string {
+    if (status === 'COMPLETED') {
+        return 'FINISHED';
+    }
+    if (status === 'IN_PROGRESS') {
+        return 'STARTED';
+    }
+    return status;
+}
 
 export const ScanHistoryPage: React.FC = () => {
     const navigate = useNavigate();
     const [scansPage, setScansPage] = useState<Page<ScanSummaryDTO> | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchScans = async () => {
@@ -15,13 +27,15 @@ export const ScanHistoryPage: React.FC = () => {
             try {
                 const data = await getHistoricalScans(20, 0);
                 setScansPage(data);
+                setError(null);
             } catch (err) {
                 console.error("Failed to load historical scans", err);
+                setError('Failed to load historical scans.');
             } finally {
                 setLoading(false);
             }
         };
-        fetchScans();
+        void fetchScans();
     }, []);
 
     const formatDate = (dateString: string) => {
@@ -31,16 +45,17 @@ export const ScanHistoryPage: React.FC = () => {
     };
 
     const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'COMPLETED': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+        switch (normalizeScanStatus(status)) {
+            case 'FINISHED': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
             case 'FAILED': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-            case 'IN_PROGRESS': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+            case 'STARTED': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
             default: return 'bg-slate-700 text-slate-400 border-slate-600';
         }
     };
 
     return (
         <div className="max-w-6xl mx-auto space-y-6">
+            {error && <Banner message={error} />}
             <div className="flex justify-between items-center bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg top-0 relative">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-white mb-1">Scan History</h1>
@@ -78,7 +93,7 @@ export const ScanHistoryPage: React.FC = () => {
                                     </div>
                                     <div className="col-span-1">
                                         <span className={`px-2 py-1 rounded text-xs font-bold tracking-wider border ${getStatusColor(scan.status)}`}>
-                                            {scan.status}
+                                            {normalizeScanStatus(scan.status)}
                                         </span>
                                     </div>
                                     <div className="col-span-1 text-center text-sm text-slate-300">

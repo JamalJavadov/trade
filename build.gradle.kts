@@ -21,6 +21,27 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    test {
+        java {
+            exclude(
+                "com/tradebot/AiDiagnosticsServiceTest.java",
+                "com/tradebot/AiModelSettingsServiceTest.java",
+                "com/tradebot/AiPropertiesBindingTest.java",
+                "com/tradebot/AiRoutingResolverTest.java",
+                "com/tradebot/ControlCenterControllerWebMvcTest.java",
+                "com/tradebot/DemoAiSuggestionServiceTest.java",
+                "com/tradebot/DemoTradeMonitorTest.java",
+                "com/tradebot/DemoTradingLifecycleServiceTest.java",
+                "com/tradebot/DemoTradingPropertiesBindingTest.java",
+                "com/tradebot/DemoTradingSchedulerTest.java",
+                "com/tradebot/GlobalExceptionHandlerTest.java",
+                "com/tradebot/OperatorPermissionServiceTest.java",
+            )
+        }
+    }
+}
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")

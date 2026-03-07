@@ -9,5 +9,6 @@ public class ScanReplayDTO {
     private List<ScanPhaseDTO> phases;
     private List<BestCandidateEventDTO> bestCandidateEvents;
     private List<SymbolEvaluationRowDTO> evaluations;
+    private List<ScanCandidateEventDTO> candidateEvents;
     private ScanChartsDTO charts;
 }

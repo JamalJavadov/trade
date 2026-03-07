@@ -17,6 +17,8 @@ import com.tradebot.security.LocalMutationGuard;
 import com.tradebot.service.AiModelSettingsService;
 import com.tradebot.service.AppSettingsService;
 import com.tradebot.service.AutoScanStateService;
+import com.tradebot.service.LiveTradingExecutionService;
+import com.tradebot.service.LiveTradingPreflightService;
 import com.tradebot.service.RecommendationPlaceabilityService;
 import com.tradebot.service.RecommendationQueryService;
 import com.tradebot.service.ScanOrchestrator;
@@ -92,6 +94,12 @@ class AffectedEndpointsDbFailureWebMvcTest {
 
     @MockBean
     private RecommendationQueryService recommendationQueryService;
+
+    @MockBean
+    private LiveTradingPreflightService liveTradingPreflightService;
+
+    @MockBean
+    private LiveTradingExecutionService liveTradingExecutionService;
 
     @BeforeEach
     void setUp() {

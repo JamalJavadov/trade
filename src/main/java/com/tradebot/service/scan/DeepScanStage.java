@@ -1,0 +1,10 @@
+package com.tradebot.service.scan;
+
+public enum DeepScanStage {
+    DATA_INTEGRITY,
+    DETERMINISTIC_STRATEGY,
+    STRUCTURAL_VALIDATION,
+    SECOND_PASS_CONFIRMATION,
+    AI_COMPARATIVE_REVIEW,
+    FINAL_GATE
+}

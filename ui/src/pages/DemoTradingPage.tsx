@@ -102,12 +102,18 @@ export function DemoTradingPage() {
     const [pulseOpen, setPulseOpen] = useState(false);
     const [pulseClosed, setPulseClosed] = useState(false);
     const prevCountsRef = useRef<{ open: number; closed: number }>({ open: 0, closed: 0 });
+    const fetchInFlightRef = useRef(false);
 
     const isDemoEnabled = Boolean(status?.enabled ?? controlCenterState?.config.demoTrading.enabled);
     const canToggleDemo = can('demo.enable_disable');
     const canAiAction = can('demo.ai.accept_reject');
 
     const fetchAll = useCallback(async (silent = false) => {
+        if (fetchInFlightRef.current) {
+            return;
+        }
+
+        fetchInFlightRef.current = true;
         if (!silent) {
             setLoading(true);
         } else {
@@ -139,6 +145,7 @@ export function DemoTradingPage() {
         } finally {
             setLoading(false);
             setRefreshing(false);
+            fetchInFlightRef.current = false;
         }
     }, []);
 

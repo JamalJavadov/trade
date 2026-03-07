@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getReplay } from '../api/scan';
 import type { ScanReplayDTO, BestCandidateEventDTO } from '../types/scanReplay';
+import { parseApiError } from '../utils/apiError';
 
 export function useScanReplay(scanRunId: string | undefined) {
     const [data, setData] = useState<ScanReplayDTO | null>(null);
@@ -22,6 +23,7 @@ export function useScanReplay(scanRunId: string | undefined) {
             try {
                 const replayData = await getReplay(scanRunId);
                 setData(replayData);
+                setError(null);
 
                 // Calculate duration
                 if (replayData.summary.startedAt) {
@@ -34,7 +36,8 @@ export function useScanReplay(scanRunId: string | undefined) {
                 }
 
             } catch (err: unknown) {
-                setError(err instanceof Error ? err.message : "Failed to load replay");
+                const parsed = parseApiError(err);
+                setError(parsed.message || "Failed to load replay");
             } finally {
                 setLoading(false);
             }
@@ -100,6 +103,10 @@ export function useScanReplay(scanRunId: string | undefined) {
     const currentBestCandidate: BestCandidateEventDTO | null =
         visibleBestEvents.length > 0 ? visibleBestEvents[visibleBestEvents.length - 1] : null;
 
+    const visibleCandidateEvents = data?.candidateEvents.filter(
+        ev => new Date(ev.ts).getTime() <= new Date(currentTs || 0).getTime()
+    ) || [];
+
     // Filter phases up to current time
     const currentPhase = data?.phases.slice().reverse().find(
         p => new Date(p.startedAt).getTime() <= new Date(currentTs || 0).getTime()
@@ -123,7 +130,8 @@ export function useScanReplay(scanRunId: string | undefined) {
         derived: {
             currentTs,
             currentBestCandidate,
-            currentPhase: currentPhase?.name || 'INITIALIZING'
+            currentPhase: currentPhase?.name || 'INITIALIZING',
+            visibleCandidateEvents
         }
     };
 }

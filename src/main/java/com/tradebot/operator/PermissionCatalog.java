@@ -39,6 +39,10 @@ public class PermissionCatalog {
                         "Allows changing and testing AI routing allowlist and model chains.", PermissionGroup.AI,
                         DangerLevel.HIGH),
 
+                new PermissionDefinition("live.execution.enabled", "Enable Live Execution",
+                        "Allows manual Binance Futures order execution from recommendation detail.",
+                        PermissionGroup.LIVE, DangerLevel.HIGH),
+
                 new PermissionDefinition("journal.feedback.submit", "Submit Journal Feedback",
                         "Allows submitting trade outcome feedback entries.", PermissionGroup.JOURNAL,
                         DangerLevel.MED),

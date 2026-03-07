@@ -133,6 +133,30 @@ export const ScanReplayPage: React.FC = () => {
                 </div>
             </div>
 
+            <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-lg p-5">
+                <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Candidate Verification Replay</h4>
+                    <span className="text-xs text-slate-500">{derived.visibleCandidateEvents.length} events visible</span>
+                </div>
+                <div className="space-y-2 max-h-56 overflow-auto pr-1">
+                    {derived.visibleCandidateEvents.length === 0 ? (
+                        <div className="text-sm text-slate-500">No candidate-stage events visible at the current playback position.</div>
+                    ) : (
+                        derived.visibleCandidateEvents.slice(-12).reverse().map((event) => (
+                            <div key={`${event.stage}-${event.seq}`} className="rounded border border-slate-700/70 bg-slate-900/40 px-3 py-2">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="font-medium text-slate-200">{event.symbol}</div>
+                                    <div className="font-mono text-xs text-blue-300">{event.stage} / {event.status}</div>
+                                </div>
+                                <div className="mt-1 text-[11px] text-slate-500">
+                                    {new Date(event.ts).toLocaleTimeString()} {event.payload ? `· ${JSON.stringify(event.payload)}` : ''}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+
             <div className="h-[500px] w-full mt-6">
                 <EvaluationsTable
                     rows={evaluations}

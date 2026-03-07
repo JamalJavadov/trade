@@ -52,8 +52,8 @@ class OperatorPermissionEnforcementWebMvcTest {
 
         mockMvc.perform(post("/api/v1/scans/run-once"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("FORBIDDEN_PERMISSION"))
-                .andExpect(jsonPath("$.message").value("Action blocked by operator permission"))
+                .andExpect(jsonPath("$.errorCode").value("RUNTIME_PERMISSION_DISABLED"))
+                .andExpect(jsonPath("$.message").value("Action blocked by runtime permission"))
                 .andExpect(jsonPath("$.details.permissionKey").value("scan.run_once"))
                 .andExpect(jsonPath("$.details.title").value("Run Scan Once"))
                 .andExpect(jsonPath("$.traceId").isNotEmpty());

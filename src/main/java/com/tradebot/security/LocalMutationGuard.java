@@ -10,6 +10,23 @@ import java.net.URI;
 public class LocalMutationGuard {
 
     public void assertLocal(HttpServletRequest request) {
+        assertLocalCheck(evaluate(request));
+    }
+
+    public void assertLocalCheck(LocalRequestCheck check) {
+        if (check != null && check.allowed()) {
+            return;
+        }
+        throw new ForbiddenNotLocalException(
+                check != null ? check.remoteAddress() : null,
+                check != null ? check.origin() : null);
+    }
+
+    public LocalRequestCheck evaluate(HttpServletRequest request) {
+        if (request == null) {
+            return new LocalRequestCheck(true, null, null, null, null);
+        }
+
         String remoteAddress = request.getRemoteAddr();
         String forwardedFor = request.getHeader("X-Forwarded-For");
         String origin = request.getHeader("Origin");
@@ -18,11 +35,16 @@ public class LocalMutationGuard {
         boolean forwardedLocal = forwardedFor == null || forwardedFor.isBlank() || isForwardedLoopback(forwardedFor);
         boolean originLocal = origin == null || origin.isBlank() || isLocalOrigin(origin);
 
-        if (remoteLocal && forwardedLocal && originLocal) {
-            return;
+        String failureReason = null;
+        if (!remoteLocal) {
+            failureReason = "Remote address is not loopback.";
+        } else if (!forwardedLocal) {
+            failureReason = "X-Forwarded-For is not loopback.";
+        } else if (!originLocal) {
+            failureReason = "Origin is not localhost.";
         }
-
-        throw new ForbiddenNotLocalException(remoteAddress, origin);
+        return new LocalRequestCheck(remoteLocal && forwardedLocal && originLocal, remoteAddress, forwardedFor, origin,
+                failureReason);
     }
 
     private boolean isForwardedLoopback(String forwardedFor) {
@@ -59,5 +81,13 @@ public class LocalMutationGuard {
         } catch (Exception ignored) {
             return false;
         }
+    }
+
+    public record LocalRequestCheck(
+            boolean allowed,
+            String remoteAddress,
+            String forwardedFor,
+            String origin,
+            String failureReason) {
     }
 }

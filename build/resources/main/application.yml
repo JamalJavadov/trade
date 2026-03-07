@@ -23,8 +23,8 @@ spring:
 
 app:
   binance:
-    api-key: "DHdRtlUrUrPUlynR6Pbdij9TK95518M0fV6OoaoBtC691wLigpXuWN0sb3huHcn0"
-    api-secret: "8u4bgfjXadvqBbivGmvTxxj8uU9gnM7g84r0eKlMrfq7X5WwC2kZ8I0tjmsrGokg"
+    api-key: "kblAHpC2KW9ok6tuJWMf2KzHCoIUwqBJ9l5w8WNuQTI1OfAt5LbhOnAWTXzQm9pU"
+    api-secret: "MC4CAQAwBQYDK2VwBCIEIKBuMRnjrQkJyEkL8JCdpaSBY4yWXuqIBQFaWExe6Wzr"
 
 ai:
   openrouter:

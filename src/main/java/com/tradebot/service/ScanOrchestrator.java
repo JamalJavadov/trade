@@ -23,6 +23,14 @@ import com.tradebot.repository.ScanPhaseEventRepository;
 import com.tradebot.repository.ScanRunRepository;
 import com.tradebot.repository.SymbolEvaluationRepository;
 import com.tradebot.repository.SymbolUniverseSnapshotRepository;
+import com.tradebot.service.scan.DeepScanCandidateResult;
+import com.tradebot.service.scan.DeepScanPipelineService;
+import com.tradebot.service.scan.DeepScanStage;
+import com.tradebot.service.scan.FrozenSymbolSnapshot;
+import com.tradebot.service.scan.MarketSnapshotService;
+import com.tradebot.service.scan.ScanCandidateEventService;
+import com.tradebot.service.scan.StageAudit;
+import com.tradebot.service.scan.StageFinding;
 import com.tradebot.sse.ScanEventPublisher;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +49,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -67,12 +76,6 @@ public class ScanOrchestrator {
     private static final String ERROR_CODE_WORKER_UNAVAILABLE = "SCANNER_DOWN";
 
     private final BinanceClient binanceClient;
-    private final BiasDetector biasDetector;
-    private final ImpulseLegDetector impulseDetector;
-    private final FibonacciCalculator fibCalculator;
-    private final SweepReclaimDetector sweepDetector;
-    private final RiskAndSizingCalculator riskCalculator;
-
     private final ScanRunRepository scanRunRepository;
     private final SymbolUniverseSnapshotRepository snapshotRepository;
     private final RecommendationRepository recommendationRepository;
@@ -84,6 +87,9 @@ public class ScanOrchestrator {
     private final AppProperties appProperties;
     private final ObjectMapper objectMapper;
     private final ScanEventPublisher scanEventPublisher;
+    private final MarketSnapshotService marketSnapshotService;
+    private final DeepScanPipelineService deepScanPipelineService;
+    private final ScanCandidateEventService scanCandidateEventService;
     @Qualifier("scanTaskExecutor")
     private final TaskExecutor scanTaskExecutor;
 
@@ -274,16 +280,20 @@ public class ScanOrchestrator {
 
     private void runPipeline(ScanRun run) {
         final UUID scanRunId = run.getId();
+        final String traceId = normalizeCorrelationId(run.getCorrelationId());
 
         ControlCenterConfig controlCenterConfig = controlCenterSettingsProvider.getConfigSnapshot();
         AppProperties runtimeProperties = buildRuntimeAppProperties(controlCenterConfig);
         StrategyTuningConfig tuningConfig = strategyConfigProvider.getActiveConfig();
         int validCount = 0;
         int noTradeCount = 0;
+        int eligibleRecommendationCount = 0;
+        int dataErrorCount = 0;
 
         try {
             log.info("Fetching exchange info...");
             Instant exchangeStart = Instant.now();
+            emitPhaseStarted(scanRunId, "EXCHANGE_INFO", Map.of("traceId", traceId));
             BinanceExchangeInfoResponse exchangeInfo = binanceClient.getExchangeInfo();
             Map<String, BinanceExchangeInfoResponse.SymbolInfo> eligibleSymbolMap = exchangeInfo.getSymbols().stream()
                     .filter(s -> "PERPETUAL".equals(s.getContractType()))
@@ -298,6 +308,7 @@ public class ScanOrchestrator {
 
             log.info("Fetching 24h tickers...");
             Instant tickerStart = Instant.now();
+            emitPhaseStarted(scanRunId, "TICKER_24H", Map.of("eligibleSymbolsCount", eligibleCount));
             List<BinanceTicker24hResponse> tickers = binanceClient.getTicker24h();
 
             List<BinanceTicker24hResponse> topTickers = tickers.stream()
@@ -310,6 +321,7 @@ public class ScanOrchestrator {
                     Map.of("totalTickers", tickers.size(), "filteredCount", topTickers.size()));
 
             Instant universeStart = Instant.now();
+            emitPhaseStarted(scanRunId, "UNIVERSE_TOP300", Map.of("topN", topTickers.size()));
             Instant snapshotTime = Instant.now();
             int rank = 1;
             for (BinanceTicker24hResponse t : topTickers) {
@@ -325,6 +337,7 @@ public class ScanOrchestrator {
 
             log.info("Processing klines for top {} symbols...", topTickers.size());
             Instant evalStart = Instant.now();
+            emitPhaseStarted(scanRunId, "STRATEGY_EVAL", Map.of("topN", topTickers.size()));
             Candidate bestCandidate = null;
             int evalRank = 1;
 
@@ -333,99 +346,53 @@ public class ScanOrchestrator {
                 int symbolRank = evalRank++;
                 try {
                     BinanceExchangeInfoResponse.SymbolInfo sInfo = eligibleSymbolMap.get(symbol);
-                    if (sInfo == null) {
-                        persistNoTrade(scanRunId, t, symbolRank, null, "DATA_ERROR", "No exchange info");
-                        noTradeCount++;
+                    List<Candle> execCandles = sInfo == null
+                            ? List.of()
+                            : binanceClient.getKlines(symbol, controlCenterConfig.getStrategyLocks().getExecutionTf(), 500);
+                    List<Candle> biasCandles = sInfo == null
+                            ? List.of()
+                            : binanceClient.getKlines(symbol, controlCenterConfig.getStrategyLocks().getBiasTf(), 500);
+
+                    FrozenSymbolSnapshot snapshot = marketSnapshotService.freeze(
+                            scanRunId,
+                            traceId,
+                            t,
+                            symbolRank,
+                            sInfo,
+                            execCandles,
+                            biasCandles,
+                            controlCenterConfig);
+                    DeepScanCandidateResult candidateResult = deepScanPipelineService.evaluate(
+                            snapshot,
+                            runtimeProperties,
+                            tuningConfig,
+                            scanCandidateEventService.recorder(scanRunId, symbol));
+                    persistCandidateEvaluation(scanRunId, t, symbolRank, candidateResult);
+
+                    if ("VALID".equalsIgnoreCase(candidateResult.deterministicEvidence().rawDecision())) {
+                        validCount++;
                     } else {
-                        List<Candle> execCandles = binanceClient.getKlines(symbol, "15m", 500);
-                        List<Candle> biasCandles = binanceClient.getKlines(symbol, "1h", 500);
-
-                        if (execCandles.size() < 50 || biasCandles.size() < 50) {
-                            persistNoTrade(scanRunId, t, symbolRank, null, "DATA_ERROR", "Insufficient candles");
-                            noTradeCount++;
-                        } else {
-                            BiasDetector.Bias bias = biasDetector.detectBias(biasCandles,
-                                    runtimeProperties.getStrategy().getFractalPeriod());
-                            if (bias == BiasDetector.Bias.UNKNOWN || bias == BiasDetector.Bias.RANGE) {
-                                persistNoTrade(scanRunId, t, symbolRank, bias, "NO_BIAS", "Bias is " + bias);
-                                noTradeCount++;
-                            } else {
-                                ImpulseLegDetector.ImpulseLeg impulse = impulseDetector.detectImpulseLeg(execCandles,
-                                        bias,
-                                        runtimeProperties.getStrategy().getFractalPeriod());
-                                if (impulse == null) {
-                                    persistNoTrade(scanRunId, t, symbolRank, bias, "NO_IMPULSE_BOS",
-                                            "No impulse leg detected");
-                                    noTradeCount++;
-                                } else {
-                                    FibonacciCalculator.FibLevels levels = fibCalculator.calculate(
-                                            BigDecimal.valueOf(impulse.startPrice()),
-                                            BigDecimal.valueOf(impulse.endPrice()));
-
-                                    SweepReclaimDetector.Setup setup = sweepDetector.detect(execCandles,
-                                            impulse.endIndex(), bias,
-                                            levels, tuningConfig);
-                                    if (setup == null) {
-                                        persistNoTrade(scanRunId, t, symbolRank, bias, "NO_SWEEP",
-                                                "No valid sweep/reclaim");
-                                        noTradeCount++;
-                                    } else {
-                                        RiskAndSizingCalculator.EvaluationResult result = riskCalculator
-                                                .calculateWithReason(
-                                                        bias, setup, levels,
-                                                        sInfo.getTickSize(), sInfo.getStepSize(), sInfo.getMinQty(),
-                                                        runtimeProperties, tuningConfig);
-
-                                        if (!result.isValid()) {
-                                            persistNoTrade(scanRunId, t, symbolRank, bias, result.skipReasonCode(),
-                                                    "Risk filter failed: " + result.skipReasonCode());
-                                            noTradeCount++;
-                                        } else {
-                                            RiskAndSizingCalculator.ExecutionPlan plan = result.plan();
-                                            persistValid(scanRunId, t, symbolRank, bias, plan, impulse, levels, setup);
-                                            validCount++;
-
-                                            if (bestCandidate == null
-                                                    || plan.rrToTp1().compareTo(bestCandidate.plan.rrToTp1()) > 0) {
-                                                bestCandidate = new Candidate(symbol, bias, plan);
-                                                scanEventPublisher.publish(scanRunId, "recommendation.best", Map.of(
-                                                        "scanRunId", scanRunId.toString(),
-                                                        "symbol", symbol,
-                                                        "side", bias == BiasDetector.Bias.UPTREND ? "LONG" : "SHORT",
-                                                        "finalScore", plan.rrToTp1(),
-                                                        "ts", Instant.now().toString()));
-
-                                                // Save to historical replay timeline
-                                                try {
-                                                    BestCandidateEvent bce = new BestCandidateEvent();
-                                                    bce.setScanRunId(scanRunId);
-                                                    bce.setTs(Instant.now());
-                                                    bce.setSymbol(symbol);
-                                                    bce.setSide(bias == BiasDetector.Bias.UPTREND ? "LONG" : "SHORT");
-                                                    bce.setFinalScore(plan.rrToTp1());
-                                                    // Assuming scoreComponents can be derived or is part of plan
-                                                    // For now, using a placeholder or actual plan details
-                                                    Map<String, Object> scoreComponents = new HashMap<>();
-                                                    scoreComponents.put("rrToTp1", plan.rrToTp1());
-                                                    scoreComponents.put("entry", plan.entryPrice());
-                                                    scoreComponents.put("sl", plan.slPrice());
-                                                    scoreComponents.put("tp1", plan.tp1Price());
-                                                    bce.setReasonJson(objectMapper.writeValueAsString(scoreComponents));
-                                                    bestCandidateEventRepository.save(bce);
-                                                } catch (Exception e) {
-                                                    log.error("Failed to save best candidate event", e);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        noTradeCount++;
+                    }
+                    if ("DATA_ERROR".equalsIgnoreCase(candidateResult.deterministicEvidence().skipReasonCode())) {
+                        dataErrorCount++;
+                    }
+                    if (candidateResult.finalGate().eligible()) {
+                        eligibleRecommendationCount++;
+                        BigDecimal score = toBigDecimal(candidateResult.deterministicEvidence().metrics().get("rr_tp1"));
+                        if (score != null && (bestCandidate == null || score.compareTo(bestCandidate.plan.rrToTp1()) > 0)) {
+                            bestCandidate = new Candidate(symbol,
+                                    candidateResult.deterministicEvidence().side(),
+                                    candidateResult.deterministicEvidence().bias(),
+                                    candidateResult);
+                            publishBestCandidate(scanRunId, bestCandidate);
                         }
                     }
                 } catch (Exception e) {
                     log.error("Failed to process {}: {}", symbol, e.getMessage());
-                    persistNoTrade(scanRunId, t, symbolRank, null, "DATA_ERROR", e.getMessage());
+                    persistUnexpectedFailure(scanRunId, traceId, t, symbolRank, e);
                     noTradeCount++;
+                    dataErrorCount++;
                 }
 
                 if (symbolRank % 5 == 0 || symbolRank == topTickers.size()) {
@@ -435,21 +402,30 @@ public class ScanOrchestrator {
                             "total", topTickers.size(),
                             "validCount", validCount,
                             "noTradeCount", noTradeCount,
+                            "eligibleCount", eligibleRecommendationCount,
+                            "dataErrorCount", dataErrorCount,
                             "ts", Instant.now().toString()));
                 }
             }
 
             emitPhase(scanRunId, "STRATEGY_EVAL", "FINISHED", evalStart,
-                    Map.of("evaluated", evalRank - 1, "validCount", validCount, "noTradeCount", noTradeCount));
+                    Map.of(
+                            "evaluated", evalRank - 1,
+                            "validCount", validCount,
+                            "noTradeCount", noTradeCount,
+                            "eligibleCount", eligibleRecommendationCount,
+                            "dataErrorCount", dataErrorCount));
 
             Instant rankStart = Instant.now();
+            emitPhaseStarted(scanRunId, "RANKING", Map.of("eligibleCount", eligibleRecommendationCount));
             if (bestCandidate != null) {
-                log.info("Best candidate found: {} {} (RR={})", bestCandidate.symbol, bestCandidate.bias,
+                log.info("Best candidate found: {} {} (RR={})", bestCandidate.symbol, bestCandidate.side,
                         bestCandidate.plan.rrToTp1());
                 emitPhase(scanRunId, "RANKING", "FINISHED", rankStart,
                         Map.of("bestSymbol", bestCandidate.symbol, "bestRrTp1", bestCandidate.plan.rrToTp1()));
 
                 Instant persistStart = Instant.now();
+                emitPhaseStarted(scanRunId, "PERSIST", Map.of("bestSymbol", bestCandidate.symbol));
                 saveRecommendation(run, bestCandidate);
 
                 recommendationRepository.findFirstByScanRunIdOrderByCreatedAtDesc(scanRunId).ifPresent(rec -> {
@@ -461,6 +437,7 @@ public class ScanOrchestrator {
                 emitPhase(scanRunId, "RANKING", "FINISHED", rankStart, Map.of("validCount", 0));
             }
 
+            emitPhaseStarted(scanRunId, "DONE", Map.of("eligibleCount", eligibleRecommendationCount));
             emitPhase(scanRunId, "DONE", "FINISHED", Instant.now(), Map.of());
 
             run.setStatus(STATUS_FINISHED);
@@ -473,7 +450,11 @@ public class ScanOrchestrator {
                     "scanRunId", scanRunId.toString(),
                     "finishedAt", run.getFinishedAt().toString(),
                     "status", STATUS_FINISHED,
-                    "counts", Map.of("valid", validCount, "noTrade", noTradeCount)));
+                    "counts", Map.of(
+                            "valid", validCount,
+                            "noTrade", noTradeCount,
+                            "eligible", eligibleRecommendationCount,
+                            "dataError", dataErrorCount)));
 
         } catch (Exception e) {
             String failureMessage = summarizeFailure(e);
@@ -572,91 +553,124 @@ public class ScanOrchestrator {
         return runtime;
     }
 
-    private void persistNoTrade(UUID scanRunId, BinanceTicker24hResponse ticker, int rank,
-            BiasDetector.Bias bias, String skipCode, String skipText) {
+    private void persistCandidateEvaluation(
+            UUID scanRunId,
+            BinanceTicker24hResponse ticker,
+            int rank,
+            DeepScanCandidateResult candidateResult) {
         SymbolEvaluation ev = new SymbolEvaluation();
         ev.setScanRunId(scanRunId);
         ev.setSymbol(ticker.getSymbol());
         ev.setRankInUniverse(rank);
         ev.setQuoteVolumeUsdt(ticker.getQuoteVolume());
-        ev.setBias(bias != null ? bias.name() : null);
-        ev.setDecision("NO_TRADE");
-        ev.setSide("NONE");
-        ev.setSkipReasonCode(skipCode);
-        ev.setSkipReasonText(skipText != null && skipText.length() > 255 ? skipText.substring(0, 255) : skipText);
-        ev.setCreatedAt(Instant.now());
-        evaluationRepository.save(ev);
+        ev.setBias(candidateResult.deterministicEvidence().bias());
+        ev.setDecision(candidateResult.deterministicEvidence().rawDecision());
+        ev.setSide(candidateResult.deterministicEvidence().side());
+        ev.setSkipReasonCode(candidateResult.deterministicEvidence().skipReasonCode());
+        ev.setSkipReasonText(truncateSkipReason(candidateResult.deterministicEvidence().skipReasonText()));
+        ev.setTraceId(candidateResult.traceId());
+        ev.setCreatedAt(candidateResult.completedAt());
+        ev.setRecommendationEligible(candidateResult.finalGate().eligible());
+        ev.setFinalIntegrityScore(candidateResult.finalGate().finalIntegrityScore());
+        ev.setConflictState(candidateResult.conflictReport().state());
 
-        scanEventPublisher.publish(scanRunId, "symbol.evaluated", Map.of(
-                "scanRunId", scanRunId.toString(),
-                "symbol", ticker.getSymbol(),
-                "rankInUniverse", rank,
-                "decision", "NO_TRADE",
-                "side", "NONE",
-                "skipReasonCode", skipCode,
-                "ts", ev.getCreatedAt().toString()));
-    }
-
-    private void persistValid(UUID scanRunId, BinanceTicker24hResponse ticker, int rank,
-            BiasDetector.Bias bias, RiskAndSizingCalculator.ExecutionPlan plan,
-            ImpulseLegDetector.ImpulseLeg impulse, FibonacciCalculator.FibLevels levels,
-            SweepReclaimDetector.Setup setup) {
-        SymbolEvaluation ev = new SymbolEvaluation();
-        ev.setScanRunId(scanRunId);
-        ev.setSymbol(ticker.getSymbol());
-        ev.setRankInUniverse(rank);
-        ev.setQuoteVolumeUsdt(ticker.getQuoteVolume());
-        ev.setBias(bias.name());
-        ev.setDecision("VALID");
-        ev.setSide(bias == BiasDetector.Bias.UPTREND ? "LONG" : "SHORT");
-        ev.setCreatedAt(Instant.now());
-
-        try {
-            Map<String, Object> metrics = new HashMap<>();
-            metrics.put("rr_tp1", plan.rrToTp1());
-            metrics.put("final_score", plan.rrToTp1());
-            metrics.put("confidence_score", plan.rrToTp1());
-            metrics.put("entry", plan.entryPrice());
-            metrics.put("sl", plan.slPrice());
-            metrics.put("tp1", plan.tp1Price());
-            metrics.put("tp2", plan.tp2Price());
-            metrics.put("tp3", plan.tp3Price());
-            metrics.put("quantity", plan.quantity());
-            metrics.put("leverage", appProperties.getLeverage());
-            ev.setMetricsJson(objectMapper.writeValueAsString(metrics));
-
-            Map<String, Object> diag = new HashMap<>();
-            diag.put("impulseStartIndex", impulse.startIndex());
-            diag.put("impulseEndIndex", impulse.endIndex());
-            diag.put("impulseStartPrice", impulse.startPrice());
-            diag.put("impulseEndPrice", impulse.endPrice());
-            diag.put("fibZero", levels.zero());
-            diag.put("fibFifty", levels.fifty());
-            diag.put("fibGolden", levels.golden());
-            diag.put("fibHundred", levels.hundred());
-            diag.put("sweepPrice", setup.sweepPrice());
-            ev.setDiagnosticsJson(objectMapper.writeValueAsString(diag));
-        } catch (Exception e) {
-            log.warn("Failed to serialize metrics/diagnostics for {}: {}", ticker.getSymbol(), e.getMessage());
-        }
+        ev.setMetricsJson(writeJson(candidateResult.deterministicEvidence().metrics()));
+        ev.setDiagnosticsJson(writeJson(candidateResult.deterministicEvidence().diagnostics()));
+        ev.setSnapshotJson(writeJson(candidateResult.snapshotSummary()));
+        ev.setIntegrityJson(writeJson(toAuditJson(candidateResult.dataIntegrity())));
+        ev.setDeterministicEvidenceJson(writeJson(candidateResult.deterministicEvidence()));
+        ev.setValidationJson(writeJson(toAuditJson(candidateResult.structuralValidation())));
+        ev.setConfirmationJson(writeJson(Map.of(
+                "audit", toAuditJson(candidateResult.secondPassConfirmation()),
+                "report", candidateResult.conflictReport())));
+        ev.setAiReviewJson(writeJson(candidateResult.aiReview()));
+        ev.setFinalGateJson(writeJson(candidateResult.finalGate()));
 
         evaluationRepository.save(ev);
 
-        Map<String, Object> payload = new HashMap<>();
+        Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("scanRunId", scanRunId.toString());
         payload.put("symbol", ticker.getSymbol());
         payload.put("rankInUniverse", rank);
-        payload.put("decision", "VALID");
+        payload.put("decision", ev.getDecision());
         payload.put("side", ev.getSide());
-        payload.put("finalScore", plan.rrToTp1());
-        payload.put("confidence", plan.rrToTp1());
-        payload.put("rrTp1", plan.rrToTp1());
-        payload.put("entry", plan.entryPrice());
-        payload.put("sl", plan.slPrice());
-        payload.put("tp1", plan.tp1Price());
+        payload.put("bias", ev.getBias());
+        payload.put("skipReasonCode", ev.getSkipReasonCode());
+        payload.put("skipReasonText", ev.getSkipReasonText());
+        payload.put("finalScore", candidateResult.deterministicEvidence().metrics().get("final_score"));
+        payload.put("confidence", candidateResult.deterministicEvidence().metrics().get("confidence_score"));
+        payload.put("rrTp1", candidateResult.deterministicEvidence().metrics().get("rr_tp1"));
+        payload.put("entry", candidateResult.deterministicEvidence().metrics().get("entry"));
+        payload.put("sl", candidateResult.deterministicEvidence().metrics().get("sl"));
+        payload.put("tp1", candidateResult.deterministicEvidence().metrics().get("tp1"));
+        payload.put("traceId", candidateResult.traceId());
+        payload.put("recommendationEligible", candidateResult.finalGate().eligible());
+        payload.put("finalIntegrityScore", candidateResult.finalGate().finalIntegrityScore());
+        payload.put("conflictState", candidateResult.conflictReport().state());
+        payload.put("aiAgreementState", candidateResult.aiReview().agreementState());
+        payload.put("aiReviewStatus", candidateResult.aiReview().status());
+        payload.put("rejectionReasons", candidateResult.finalGate().rejectionReasons());
         payload.put("ts", ev.getCreatedAt().toString());
 
         scanEventPublisher.publish(scanRunId, "symbol.evaluated", payload);
+    }
+
+    private void persistUnexpectedFailure(
+            UUID scanRunId,
+            String traceId,
+            BinanceTicker24hResponse ticker,
+            int rank,
+            Exception error) {
+        SymbolEvaluation ev = new SymbolEvaluation();
+        ev.setScanRunId(scanRunId);
+        ev.setSymbol(ticker.getSymbol());
+        ev.setRankInUniverse(rank);
+        ev.setQuoteVolumeUsdt(ticker.getQuoteVolume());
+        ev.setDecision("NO_TRADE");
+        ev.setSide("NONE");
+        ev.setSkipReasonCode("DATA_ERROR");
+        ev.setSkipReasonText(truncateSkipReason(summarizeFailure(error)));
+        ev.setTraceId(traceId);
+        ev.setCreatedAt(Instant.now());
+        ev.setRecommendationEligible(false);
+        ev.setFinalIntegrityScore(0);
+        ev.setConflictState("UNEXPECTED_FAILURE");
+        ev.setSnapshotJson(writeJson(Map.of(
+                "traceId", traceId,
+                "symbol", ticker.getSymbol(),
+                "rankInUniverse", rank)));
+        ev.setIntegrityJson(writeJson(Map.of(
+                "stage", DeepScanStage.DATA_INTEGRITY.name(),
+                "status", "FAILED",
+                "findings", List.of(new StageFinding("UNEXPECTED_PIPELINE_FAILURE", "CRITICAL", summarizeFailure(error), Map.of())))));
+        ev.setFinalGateJson(writeJson(Map.of(
+                "eligible", false,
+                "finalIntegrityScore", 0,
+                "rejectionReasons", List.of("UNEXPECTED_PIPELINE_FAILURE"))));
+        evaluationRepository.save(ev);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("scanRunId", scanRunId.toString());
+        payload.put("symbol", ticker.getSymbol());
+        payload.put("rankInUniverse", rank);
+        payload.put("decision", "NO_TRADE");
+        payload.put("side", "NONE");
+        payload.put("skipReasonCode", "DATA_ERROR");
+        payload.put("skipReasonText", ev.getSkipReasonText());
+        payload.put("finalIntegrityScore", 0);
+        payload.put("recommendationEligible", false);
+        payload.put("traceId", traceId);
+        payload.put("ts", ev.getCreatedAt().toString());
+        scanEventPublisher.publish(scanRunId, "symbol.evaluated", payload);
+    }
+
+    private void emitPhaseStarted(UUID scanRunId, String phase, Map<String, Object> meta) {
+        scanEventPublisher.publish(scanRunId, "phase.started", Map.of(
+                "scanRunId", scanRunId.toString(),
+                "phase", phase,
+                "status", STATUS_STARTED,
+                "ts", Instant.now().toString(),
+                "meta", meta == null ? Map.of() : meta));
     }
 
     private void emitPhase(UUID scanRunId, String phase, String status, Instant startedAt, Map<String, Object> meta) {
@@ -681,18 +695,49 @@ public class ScanOrchestrator {
                 "meta", meta));
     }
 
+    private void publishBestCandidate(UUID scanRunId, Candidate bestCandidate) {
+        scanEventPublisher.publish(scanRunId, "recommendation.best", Map.of(
+                "scanRunId", scanRunId.toString(),
+                "symbol", bestCandidate.symbol,
+                "side", bestCandidate.side,
+                "finalScore", bestCandidate.plan.rrToTp1(),
+                "integrityScore", bestCandidate.result.finalGate().finalIntegrityScore(),
+                "ts", Instant.now().toString()));
+
+        try {
+            BestCandidateEvent bce = new BestCandidateEvent();
+            bce.setScanRunId(scanRunId);
+            bce.setTs(Instant.now());
+            bce.setSymbol(bestCandidate.symbol);
+            bce.setSide(bestCandidate.side);
+            bce.setFinalScore(bestCandidate.plan.rrToTp1());
+
+            Map<String, Object> scoreComponents = new LinkedHashMap<>();
+            scoreComponents.put("rrToTp1", bestCandidate.plan.rrToTp1());
+            scoreComponents.put("entry", bestCandidate.plan.entryPrice());
+            scoreComponents.put("sl", bestCandidate.plan.slPrice());
+            scoreComponents.put("tp1", bestCandidate.plan.tp1Price());
+            scoreComponents.put("integrityScore", bestCandidate.result.finalGate().finalIntegrityScore());
+            scoreComponents.put("aiAgreementState", bestCandidate.result.aiReview().agreementState());
+            bce.setReasonJson(objectMapper.writeValueAsString(scoreComponents));
+            bestCandidateEventRepository.save(bce);
+        } catch (Exception e) {
+            log.error("Failed to save best candidate event", e);
+        }
+    }
+
     private void saveRecommendation(ScanRun run, Candidate bestCandidate) throws Exception {
         Recommendation lastRec = recommendationRepository.findFirstByOrderByCreatedAtDesc().orElse(null);
 
         Recommendation rec = new Recommendation();
         rec.setScanRun(run);
         rec.setSymbol(bestCandidate.symbol);
-        String binanceSide = (bestCandidate.bias == BiasDetector.Bias.UPTREND) ? "BUY" : "SELL";
+        String binanceSide = "LONG".equalsIgnoreCase(bestCandidate.side) ? "BUY" : "SELL";
         String oppositeSide = "BUY".equals(binanceSide) ? "SELL" : "BUY";
         rec.setSide(binanceSide);
 
         String rationale = String.format("SM-Fib %s setup. Entry: %s, SL: %s, TP1: %s. R:R=%.2f",
-                bestCandidate.bias,
+                bestCandidate.result.deterministicEvidence().bias(),
                 bestCandidate.plan.entryPrice(),
                 bestCandidate.plan.slPrice(),
                 bestCandidate.plan.tp1Price(),
@@ -702,6 +747,13 @@ public class ScanOrchestrator {
         rec.setConfidenceScore(bestCandidate.plan.rrToTp1());
         rec.setCreatedAt(Instant.now());
         rec.setStatus("NEW");
+        rec.setDiagnosticsJson(writeJson(Map.of(
+                "traceId", bestCandidate.result.traceId(),
+                "integrityScore", bestCandidate.result.finalGate().finalIntegrityScore(),
+                "recommendationEligible", bestCandidate.result.finalGate().eligible(),
+                "aiReview", bestCandidate.result.aiReview(),
+                "finalGate", bestCandidate.result.finalGate(),
+                "snapshot", bestCandidate.result.snapshotSummary())));
 
         OrderFields fields = new OrderFields();
         fields.setRecommendation(rec);
@@ -754,13 +806,70 @@ public class ScanOrchestrator {
 
     private static class Candidate {
         final String symbol;
-        final BiasDetector.Bias bias;
+        final String side;
+        final String bias;
         final RiskAndSizingCalculator.ExecutionPlan plan;
+        final DeepScanCandidateResult result;
 
-        Candidate(String symbol, BiasDetector.Bias bias, RiskAndSizingCalculator.ExecutionPlan plan) {
+        Candidate(String symbol, String side, String bias, DeepScanCandidateResult result) {
             this.symbol = symbol;
+            this.side = side;
             this.bias = bias;
-            this.plan = plan;
+            this.result = result;
+            this.plan = new RiskAndSizingCalculator.ExecutionPlan(
+                    toBigDecimal(result.deterministicEvidence().metrics().get("entry")),
+                    toBigDecimal(result.deterministicEvidence().metrics().get("sl")),
+                    toBigDecimal(result.deterministicEvidence().metrics().get("tp1")),
+                    toBigDecimal(result.deterministicEvidence().metrics().get("tp2")),
+                    toBigDecimal(result.deterministicEvidence().metrics().get("tp3")),
+                    toBigDecimal(result.deterministicEvidence().metrics().get("quantity")),
+                    toBigDecimal(result.deterministicEvidence().metrics().get("rr_tp1")));
         }
+    }
+
+    private static BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        try {
+            return new BigDecimal(String.valueOf(value));
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private String truncateSkipReason(String skipText) {
+        if (skipText == null) {
+            return null;
+        }
+        return skipText.length() > 255 ? skipText.substring(0, 255) : skipText;
+    }
+
+    private String writeJson(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ex) {
+            log.warn("Failed to serialize scan payload: {}", ex.getMessage());
+            return null;
+        }
+    }
+
+    private Map<String, Object> toAuditJson(StageAudit audit) {
+        if (audit == null) {
+            return Map.of();
+        }
+        return Map.of(
+                "stage", audit.stage().name(),
+                "status", audit.status(),
+                "findings", audit.findings(),
+                "details", audit.details(),
+                "startedAt", audit.startedAt(),
+                "finishedAt", audit.finishedAt());
     }
 }

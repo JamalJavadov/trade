@@ -45,6 +45,11 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
     private static final BigDecimal LOCKED_EQUITY_CAP = BigDecimal.ONE;
     private static final BigDecimal LOCKED_MIN_RR = new BigDecimal("2.0");
     private static final Duration DB_LOAD_RETRY_BACKOFF = Duration.ofSeconds(30);
+    private static final String LIVE_EXECUTION_PERMISSION = "live.execution.enabled";
+    private static final List<String> LEGACY_LIVE_EXECUTION_PERMISSIONS = List.of(
+            "live.execution.view",
+            "live.execution.run",
+            "live.execution.reconcile");
 
     private static final List<String> DEFAULT_ALLOWLIST = List.of(
             "stepfun/step-3.5-flash:free",
@@ -124,6 +129,14 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         return deepCopy(getConfigSnapshot().getDemoTrading());
     }
 
+    public ControlCenterConfig.LiveExecution getLiveExecutionSettings() {
+        return deepCopy(getConfigSnapshot().getLiveExecution());
+    }
+
+    public boolean isLiveExecutionReadOnly() {
+        return getConfigSnapshot().getLiveExecution().isReadOnly();
+    }
+
     @Transactional
     public ControlCenterConfig patch(JsonNode patch, String reason, String actor) {
         if (patch != null && !patch.isObject()) {
@@ -133,6 +146,9 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         ControlCenterStateEntity entity = controlCenterStateRepository.findById(STATE_ID)
                 .orElseGet(this::bootstrapStateEntity);
         ControlCenterConfig current = parseConfig(entity.getConfigJson());
+        boolean currentChanged = migrateLegacyLiveExecutionState(current, entity.getConfigJson())
+                || normalizeAndValidate(current)
+                || hasLegacyLiveExecutionShape(entity.getConfigJson());
 
         ObjectNode root = objectMapper.valueToTree(current);
         if (patch != null) {
@@ -142,6 +158,14 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         ControlCenterConfig merged = objectMapper.convertValue(root, ControlCenterConfig.class);
         normalizeAndValidate(merged);
         if (objectMapper.valueToTree(current).equals(objectMapper.valueToTree(merged))) {
+            if (currentChanged) {
+                entity.setConfigJson(writeJson(merged));
+                entity.setUpdatedAt(Instant.now());
+                entity.setUpdatedBy(auditValue(actor, reason == null ? "runtime-normalize" : reason));
+                entity.setVersion(Math.max(entity.getVersion(), 1) + 1);
+                controlCenterStateRepository.save(entity);
+                controlCenterCache.invalidate();
+            }
             return deepCopy(current);
         }
 
@@ -222,6 +246,8 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
             selected = routing.getSuggestion();
         } else if (taskType == AiTaskType.EXPLAINABILITY_TEXT) {
             selected = routing.getExplainability();
+        } else if (taskType == AiTaskType.SCAN_REVIEW) {
+            selected = routing.getScanReview();
         } else {
             selected = routing.getVision();
         }
@@ -329,11 +355,14 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
                     .orElseGet(this::bootstrapStateEntity);
             ControlCenterConfig config = parseConfig(entity.getConfigJson());
 
-            boolean changed = normalizeAndValidate(config);
+            boolean changed = migrateLegacyLiveExecutionState(config, entity.getConfigJson())
+                    || normalizeAndValidate(config)
+                    || hasLegacyLiveExecutionShape(entity.getConfigJson());
             if (changed) {
                 entity.setConfigJson(writeJson(config));
                 entity.setUpdatedAt(Instant.now());
                 entity.setUpdatedBy(auditValue(entity.getUpdatedBy(), "runtime-normalize"));
+                entity.setVersion(Math.max(entity.getVersion(), 1) + 1);
                 controlCenterStateRepository.save(entity);
             }
             nextDbLoadAttemptAt = Instant.EPOCH;
@@ -404,6 +433,9 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         config.getAi().getLive().getRouting().getExplainability().setFallbackModels(List.of(DEFAULT_ALLOWLIST.get(3)));
         config.getAi().getLive().getRouting().getVision().setPrimaryModel(DEFAULT_ALLOWLIST.get(5));
         config.getAi().getLive().getRouting().getVision().setFallbackModels(List.of(DEFAULT_ALLOWLIST.get(4)));
+        config.getAi().getLive().getRouting().getScanReview().setPrimaryModel(DEFAULT_ALLOWLIST.get(0));
+        config.getAi().getLive().getRouting().getScanReview()
+                .setFallbackModels(List.of(DEFAULT_ALLOWLIST.get(1), DEFAULT_ALLOWLIST.get(3)));
 
         config.getAi().getDemo().getRouting().getSuggestion().setPrimaryModel(DEFAULT_ALLOWLIST.get(5));
         config.getAi().getDemo().getRouting().getSuggestion()
@@ -413,6 +445,9 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
                 .setFallbackModels(List.of(DEFAULT_ALLOWLIST.get(3), DEFAULT_ALLOWLIST.get(1)));
         config.getAi().getDemo().getRouting().getVision().setPrimaryModel(DEFAULT_ALLOWLIST.get(5));
         config.getAi().getDemo().getRouting().getVision().setFallbackModels(List.of(DEFAULT_ALLOWLIST.get(4)));
+        config.getAi().getDemo().getRouting().getScanReview().setPrimaryModel(DEFAULT_ALLOWLIST.get(5));
+        config.getAi().getDemo().getRouting().getScanReview()
+                .setFallbackModels(List.of(DEFAULT_ALLOWLIST.get(6), DEFAULT_ALLOWLIST.get(1)));
 
         config.getDemoTrading().setEnabled(false);
         config.getDemoTrading().setIntervalMinutes(15);
@@ -423,6 +458,8 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         config.getDemoTrading().setFeeBps(4);
         config.getDemoTrading().setSlippageBps(2);
         config.getDemoTrading().setTimeStopMinutes(90);
+
+        config.getLiveExecution().setReadOnly(false);
 
         config.getStrategyLocks().setExecutionTf("15m");
         config.getStrategyLocks().setBiasTf("1h");
@@ -496,6 +533,8 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
     private boolean normalizeAndValidate(ControlCenterConfig config) {
         config.ensureDefaults();
         boolean changed = false;
+        ControlCenterConfig defaults = defaultConfig();
+        changed = migrateLiveExecutionCapability(config.getPermissions()) || changed;
 
         // Ensure all catalog permissions are present.
         for (PermissionCatalog.PermissionDefinition definition : permissionCatalog.all()) {
@@ -551,7 +590,8 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         }
 
         if (config.getAi().getAllowlist().isEmpty()) {
-            throw new IllegalArgumentException("ai.allowlist must not be empty");
+            config.getAi().setAllowlist(new ArrayList<>(defaults.getAi().getAllowlist()));
+            changed = true;
         }
 
         List<String> normalizedAllowlist = new ArrayList<>(
@@ -559,6 +599,18 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         if (normalizedAllowlist.isEmpty()) {
             throw new IllegalArgumentException("ai.allowlist must not be empty");
         }
+
+        changed = backfillRoutingDefaults(
+                config.getAi().getLive().getRouting(),
+                defaults.getAi().getLive().getRouting(),
+                normalizedAllowlist)
+                || changed;
+        changed = backfillRoutingDefaults(
+                config.getAi().getDemo().getRouting(),
+                defaults.getAi().getDemo().getRouting(),
+                normalizedAllowlist)
+                || changed;
+
         if (!normalizedAllowlist.equals(config.getAi().getAllowlist())) {
             config.getAi().setAllowlist(normalizedAllowlist);
             changed = true;
@@ -588,10 +640,166 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         return changed;
     }
 
+    private boolean migrateLiveExecutionCapability(Map<String, Boolean> permissions) {
+        Boolean existingCanonical = permissions.get(LIVE_EXECUTION_PERMISSION);
+        Boolean legacyRun = permissions.remove("live.execution.run");
+        Boolean legacyView = permissions.remove("live.execution.view");
+        Boolean legacyReconcile = permissions.remove("live.execution.reconcile");
+
+        Boolean resolved = legacyRun != null
+                ? legacyRun
+                : existingCanonical != null
+                        ? existingCanonical
+                        : legacyView != null
+                                ? legacyView
+                                : legacyReconcile;
+        if (resolved == null) {
+            resolved = Boolean.TRUE;
+        }
+
+        boolean changed = legacyRun != null || legacyView != null || legacyReconcile != null;
+        if (!resolved.equals(existingCanonical)) {
+            permissions.put(LIVE_EXECUTION_PERMISSION, resolved);
+            changed = true;
+        } else if (!permissions.containsKey(LIVE_EXECUTION_PERMISSION)) {
+            permissions.put(LIVE_EXECUTION_PERMISSION, resolved);
+            changed = true;
+        }
+        return changed;
+    }
+
+    private boolean hasLegacyLiveExecutionShape(String json) {
+        if (json == null || json.isBlank()) {
+            return false;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            if (!root.isObject()) {
+                return false;
+            }
+            if (root.has("liveTrading")) {
+                return true;
+            }
+            JsonNode permissions = root.path("permissions");
+            if (!permissions.isObject()) {
+                return false;
+            }
+            for (String legacyKey : LEGACY_LIVE_EXECUTION_PERMISSIONS) {
+                if (permissions.has(legacyKey)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean migrateLegacyLiveExecutionState(ControlCenterConfig config, String json) {
+        if (config == null || json == null || json.isBlank()) {
+            return false;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            if (!root.isObject()) {
+                return false;
+            }
+
+            JsonNode legacyLiveTrading = root.path("liveTrading");
+            if (!legacyLiveTrading.isObject()) {
+                return false;
+            }
+
+            boolean changed = false;
+            JsonNode permissions = root.path("permissions");
+            boolean hasCanonicalPermission = permissions.isObject() && permissions.has(LIVE_EXECUTION_PERMISSION);
+            boolean hasLegacyPermission = permissions.isObject() && LEGACY_LIVE_EXECUTION_PERMISSIONS.stream()
+                    .anyMatch(permissions::has);
+
+            if (!hasCanonicalPermission && !hasLegacyPermission) {
+                Boolean legacyCapability = booleanValue(legacyLiveTrading, "manualExecutionEnabled");
+                if (legacyCapability == null) {
+                    legacyCapability = booleanValue(legacyLiveTrading, "enabled");
+                }
+                if (legacyCapability != null
+                        && !legacyCapability.equals(config.getPermissions().get(LIVE_EXECUTION_PERMISSION))) {
+                    config.getPermissions().put(LIVE_EXECUTION_PERMISSION, legacyCapability);
+                    changed = true;
+                }
+            }
+
+            boolean readOnlyAlreadyPresent = root.path("liveExecution").isObject()
+                    && root.path("liveExecution").has("readOnly");
+            if (!readOnlyAlreadyPresent) {
+                Boolean killSwitch = booleanValue(legacyLiveTrading, "killSwitch");
+                Boolean armed = booleanValue(legacyLiveTrading, "armed");
+                Boolean legacyReadOnly = killSwitch != null
+                        ? killSwitch
+                        : armed != null
+                                ? !armed
+                                : null;
+                if (legacyReadOnly != null && config.getLiveExecution().isReadOnly() != legacyReadOnly) {
+                    config.getLiveExecution().setReadOnly(legacyReadOnly);
+                    changed = true;
+                }
+            }
+
+            return changed;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private Boolean booleanValue(JsonNode node, String field) {
+        if (node == null || !node.isObject() || !node.has(field) || !node.get(field).isBoolean()) {
+            return null;
+        }
+        return node.get(field).asBoolean();
+    }
+
+    private boolean backfillRoutingDefaults(
+            ControlCenterConfig.Routing routing,
+            ControlCenterConfig.Routing defaults,
+            List<String> allowlist) {
+        boolean changed = false;
+        changed = backfillTaskDefaults(routing.getSuggestion(), defaults.getSuggestion(), allowlist) || changed;
+        changed = backfillTaskDefaults(routing.getExplainability(), defaults.getExplainability(), allowlist) || changed;
+        changed = backfillTaskDefaults(routing.getVision(), defaults.getVision(), allowlist) || changed;
+        changed = backfillTaskDefaults(routing.getScanReview(), defaults.getScanReview(), allowlist) || changed;
+        return changed;
+    }
+
+    private boolean backfillTaskDefaults(
+            ControlCenterConfig.TaskRouting task,
+            ControlCenterConfig.TaskRouting defaults,
+            List<String> allowlist) {
+        boolean changed = false;
+        if (trimToNull(task.getPrimaryModel()) == null) {
+            task.setPrimaryModel(defaults.getPrimaryModel());
+            if (task.getFallbackModels() == null || task.getFallbackModels().isEmpty()) {
+                task.setFallbackModels(new ArrayList<>(defaults.getFallbackModels()));
+            }
+            if (!allowlist.contains(defaults.getPrimaryModel())) {
+                allowlist.add(defaults.getPrimaryModel());
+            }
+            for (String fallback : defaults.getFallbackModels()) {
+                if (!allowlist.contains(fallback)) {
+                    allowlist.add(fallback);
+                }
+            }
+            changed = true;
+        } else if (task.getFallbackModels() == null) {
+            task.setFallbackModels(new ArrayList<>());
+            changed = true;
+        }
+        return changed;
+    }
+
     private void validateRouting(String path, ControlCenterConfig.Routing routing, List<String> allowlist) {
         validateTask(path + ".suggestion", routing.getSuggestion(), allowlist);
         validateTask(path + ".explainability", routing.getExplainability(), allowlist);
         validateTask(path + ".vision", routing.getVision(), allowlist);
+        validateTask(path + ".scanReview", routing.getScanReview(), allowlist);
     }
 
     private void validateTask(String path, ControlCenterConfig.TaskRouting task, List<String> allowlist) {
@@ -641,6 +849,7 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
             JsonNode suggestion = tasks.path(AiTaskType.SUGGESTION_BATCH.name());
             JsonNode explainability = tasks.path(AiTaskType.EXPLAINABILITY_TEXT.name());
             JsonNode vision = tasks.path(AiTaskType.VISION_DIAGNOSTIC.name());
+            JsonNode scanReview = tasks.path(AiTaskType.SCAN_REVIEW.name());
 
             if (suggestion.isObject()) {
                 routing.set("suggestion", suggestion);
@@ -650,6 +859,9 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
             }
             if (vision.isObject()) {
                 routing.set("vision", vision);
+            }
+            if (scanReview.isObject()) {
+                routing.set("scanReview", scanReview);
             }
         });
     }

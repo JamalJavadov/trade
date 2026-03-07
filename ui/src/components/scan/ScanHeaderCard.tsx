@@ -49,6 +49,9 @@ export function ScanHeaderCard({
                         <p className="text-sm text-slate-400 font-mono">
                             Run ID: {summary.id.substring(0, 8)}...
                         </p>
+                        <p className="text-xs text-slate-500">
+                            Eligible {summary.eligibleCount ?? 0} / Blocked {summary.blockedCount ?? 0} / Conflicts {summary.conflictCount ?? 0}
+                        </p>
                         {lastUpdatedAt && (
                             <span className="text-xs text-slate-500">
                                 Updated {lastUpdatedAt}

@@ -7,9 +7,65 @@ export const ErrorExplainMap: Record<string, { why: string; fix: string }> = {
         why: 'API key invalid or permissions missing.',
         fix: 'Check BINANCE_API_KEY/SECRET, verify futures read permissions in Binance console.',
     },
+    'BINANCE_AUTH_INVALID': {
+        why: 'Signed Binance authentication failed.',
+        fix: 'Check the live Binance API key/secret pair and confirm the backend host/IP is the one Binance expects.',
+    },
+    'BINANCE_IP_NOT_ALLOWED': {
+        why: 'Binance rejected the backend host IP for signed requests.',
+        fix: 'Update the Binance trusted IP allowlist to include the backend host IP reported in diagnostics.',
+    },
+    'BINANCE_FUTURES_PERMISSION_MISSING': {
+        why: 'The key works for signed requests, but Binance Futures access is not enabled.',
+        fix: 'Enable Futures permissions for the API key in Binance and wait for the permission change to propagate.',
+    },
+    'BINANCE_TIMESTAMP_INVALID': {
+        why: 'The backend clock is outside Binance recvWindow.',
+        fix: 'Correct the workstation/server time and retry after NTP or system clock sync.',
+    },
+    'BINANCE_SIGNING_FAILED': {
+        why: 'The backend generated an invalid Binance request signature.',
+        fix: 'Verify the configured secret matches the key and that the backend is using the intended Binance credentials.',
+    },
+    'BINANCE_ENDPOINT_MISCONFIGURED': {
+        why: 'The backend is calling the wrong Binance endpoint family or path.',
+        fix: 'Use the live-trading health diagnostics to verify Futures endpoints are being used for signed checks.',
+    },
     'BINANCE_NETWORK': {
         why: 'Binance network request timed out or failed.',
         fix: 'Retry shortly. If persistent, check outbound network/DNS and Binance status.',
+    },
+    'LIVE_EXECUTION_DISABLED': {
+        why: 'Manual live execution is disabled in runtime config.',
+        fix: 'Enable `live.execution.enabled` in Control Center.',
+    },
+    'BOT_READ_ONLY': {
+        why: 'Trading is disabled because live execution is in READ-ONLY mode.',
+        fix: 'Turn off the Control Center live execution READ-ONLY toggle before submitting a real order.',
+    },
+    'LOCAL_MUTATION_BLOCKED': {
+        why: 'Live execution mutations are only allowed from localhost.',
+        fix: 'Open the UI from localhost and submit from the same workstation as the backend.',
+    },
+    'RUNTIME_PERMISSION_DISABLED': {
+        why: 'A required runtime permission is disabled.',
+        fix: 'Enable the required permission in Control Center and retry.',
+    },
+    'DUPLICATE_SUBMIT_BLOCKED': {
+        why: 'This manual live execution request was already submitted.',
+        fix: 'Refresh execution history before retrying. Use a new client request id for a new manual attempt.',
+    },
+    'PLACEABILITY_FAILED': {
+        why: 'The recommendation is no longer placeable against live market conditions.',
+        fix: 'Refresh the recommendation or wait for a new one instead of forcing a stale setup.',
+    },
+    'RECOMMENDATION_STALE': {
+        why: 'The recommendation is too old for manual live execution.',
+        fix: 'Use a newly generated recommendation before submitting a live order.',
+    },
+    'EXCHANGE_FILTER_INVALID': {
+        why: 'The prepared order payload no longer satisfies Binance Futures filters.',
+        fix: 'Refresh the live preflight and verify quantity, tick-size, and notional rules before retrying.',
     },
     'OPENROUTER_AUTH': {
         why: 'OpenRouter key invalid.',

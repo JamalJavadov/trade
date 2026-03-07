@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getLatestAiSuggestions, acceptAiBatch, rejectAiBatch, type AiSuggestionLatestResponse } from '../api/client';
 import { AiStatusCard } from '../components/AiStatusCard';
 import { AiBatchCard } from '../components/AiBatchCard';
@@ -7,6 +7,7 @@ import { Banner } from '../components/Banner';
 import { Sparkles, RefreshCcw, Info } from 'lucide-react';
 import { usePermissions } from '../hooks/usePermissions';
 import { disabledByPermissionTooltip } from '../utils/permissionUi';
+import { parseApiError } from '../utils/apiError';
 
 export const AiPage: React.FC = () => {
     const { can } = usePermissions();
@@ -17,25 +18,33 @@ export const AiPage: React.FC = () => {
     const [actionLoading, setActionLoading] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const fetchInFlightRef = useRef(false);
     const canAcceptReject = can('ai.suggestions.accept_reject');
     const aiActionDisabledTooltip = disabledByPermissionTooltip('ai.suggestions.accept_reject', canAcceptReject);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
+        if (fetchInFlightRef.current) {
+            return;
+        }
+
+        fetchInFlightRef.current = true;
         setLoading(true);
         setError(null);
         try {
             const res = await getLatestAiSuggestions();
             setData(res);
-        } catch (err: any) {
-            setError(err.message || "Failed to load AI suggestions");
+        } catch (err) {
+            const parsed = parseApiError(err);
+            setError(parsed.message || "Failed to load AI suggestions");
         } finally {
             setLoading(false);
+            fetchInFlightRef.current = false;
         }
-    };
+    }, []);
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        void fetchData();
+    }, [fetchData]);
 
     const handleAcceptClick = () => {
         if (!canAcceptReject) {
@@ -55,9 +64,10 @@ export const AiPage: React.FC = () => {
             await acceptAiBatch(data.batch.id);
             setSuccessMsg(`Successfully activated new Strategy Config based on Batch #${data.batch.id}`);
             setShowConfirmModal(false);
-            fetchData();
-        } catch (err: any) {
-            setError(err.message || "Failed to apply AI modifications");
+            void fetchData();
+        } catch (err) {
+            const parsed = parseApiError(err);
+            setError(parsed.message || "Failed to apply AI modifications");
         } finally {
             setActionLoading(false);
         }
@@ -73,9 +83,10 @@ export const AiPage: React.FC = () => {
         try {
             await rejectAiBatch(data.batch.id);
             setSuccessMsg(`Batch #${data.batch.id} rejected.`);
-            fetchData();
-        } catch (err: any) {
-            setError(err.message || "Failed to reject AI modifications");
+            void fetchData();
+        } catch (err) {
+            const parsed = parseApiError(err);
+            setError(parsed.message || "Failed to reject AI modifications");
         } finally {
             setActionLoading(false);
         }

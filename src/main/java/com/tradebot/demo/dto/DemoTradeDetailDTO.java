@@ -1,5 +1,6 @@
 package com.tradebot.demo.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -34,6 +35,7 @@ public class DemoTradeDetailDTO {
     private BigDecimal totalFeesUsdt;
     private BigDecimal lastMarkPrice;
     private BigDecimal pnlUsdt;
+    @JsonProperty("rMultiple")
     private BigDecimal rMultiple;
     private String snapshotJson;
 }

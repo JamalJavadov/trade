@@ -2,13 +2,17 @@ import React from 'react';
 import { AlertTriangle, Copy, RefreshCw } from 'lucide-react';
 import { useErrorStore } from '../../store/errorStore';
 
+interface BoundaryProps extends React.PropsWithChildren {
+    onReset: () => void;
+}
+
 interface BoundaryState {
     hasError: boolean;
     error?: Error;
     componentStack?: string;
 }
 
-class LiveScanErrorBoundaryInner extends React.Component<React.PropsWithChildren, BoundaryState> {
+class LiveScanErrorBoundaryInner extends React.Component<BoundaryProps, BoundaryState> {
     state: BoundaryState = {
         hasError: false,
     };
@@ -55,8 +59,13 @@ class LiveScanErrorBoundaryInner extends React.Component<React.PropsWithChildren
         void navigator.clipboard.writeText(JSON.stringify(report, null, 2));
     };
 
-    private reload = () => {
-        window.location.reload();
+    private reset = () => {
+        this.setState({
+            hasError: false,
+            error: undefined,
+            componentStack: undefined,
+        });
+        this.props.onReset();
     };
 
     render() {
@@ -73,18 +82,18 @@ class LiveScanErrorBoundaryInner extends React.Component<React.PropsWithChildren
                     <div className="flex-1">
                         <h2 className="text-lg font-bold text-rose-300 mb-1">Live Scan crashed</h2>
                         <p className="text-sm text-rose-100/80">
-                            A runtime error interrupted rendering. Use reload to recover this scan view.
+                            A runtime error interrupted rendering. Reset the scan view to remount the page without forcing a browser refresh.
                         </p>
                         <p className="text-xs text-rose-100/70 mt-2 font-mono">
                             ScanRunId: {context?.scanRunId ?? 'unknown'}
                         </p>
                         <div className="mt-4 flex flex-wrap gap-2">
                             <button
-                                onClick={this.reload}
+                                onClick={this.reset}
                                 className="inline-flex items-center gap-2 px-3 py-1.5 text-xs rounded border border-rose-600/70 bg-rose-700/20 hover:bg-rose-700/40"
                             >
                                 <RefreshCw size={13} />
-                                Reload scan details
+                                Reset scan view
                             </button>
                             <button
                                 onClick={this.copyCrashReport}
@@ -102,5 +111,14 @@ class LiveScanErrorBoundaryInner extends React.Component<React.PropsWithChildren
 }
 
 export const LiveScanErrorBoundary: React.FC<React.PropsWithChildren> = ({ children }) => {
-    return <LiveScanErrorBoundaryInner>{children}</LiveScanErrorBoundaryInner>;
+    const [resetKey, setResetKey] = React.useState(0);
+
+    return (
+        <LiveScanErrorBoundaryInner
+            key={resetKey}
+            onReset={() => setResetKey((current) => current + 1)}
+        >
+            {children}
+        </LiveScanErrorBoundaryInner>
+    );
 };

@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Banner } from '../components/Banner';
 import { useControlCenter, usePermissions } from '../hooks/usePermissions';
 import { useToastStore } from '../store/toastStore';
 import { parseApiError } from '../utils/apiError';
 import { getErrorExplanation } from '../utils/errorMap';
-import type { ControlCenterConfig, ControlCenterTaskRouting } from '../api/controlCenterApi';
+import { normalizeControlCenterConfig, type ControlCenterConfig, type ControlCenterTaskRouting } from '../api/controlCenterApi';
 import { getAutoScanState, type AutoScanStateResponse } from '../api/autoscanApi';
 import { runScanOnce } from '../api/client';
 
@@ -15,7 +15,7 @@ interface UiError {
     fix: string;
 }
 
-type SavingSection = 'permissions' | 'scan' | 'risk' | 'alerts' | 'ai' | 'demo' | 'reset' | null;
+type SavingSection = 'liveExecution' | 'permissions' | 'scan' | 'risk' | 'alerts' | 'ai' | 'demo' | 'reset' | null;
 
 const RESET_DEFAULTS_PATCH: Record<string, unknown> = {
     scan: {
@@ -44,6 +44,9 @@ const RESET_DEFAULTS_PATCH: Record<string, unknown> = {
         feeBps: 4,
         slippageBps: 2,
         timeStopMinutes: 90,
+    },
+    liveExecution: {
+        readOnly: false,
     },
     strategyLocks: {
         executionTf: '15m',
@@ -240,21 +243,25 @@ export function PermissionsPage() {
     const [alertsDraft, setAlertsDraft] = useState<ControlCenterConfig['alerts'] | null>(null);
     const [aiDraft, setAiDraft] = useState<ControlCenterConfig['ai'] | null>(null);
     const [demoDraft, setDemoDraft] = useState<ControlCenterConfig['demoTrading'] | null>(null);
+    const [liveExecutionDraft, setLiveExecutionDraft] = useState<ControlCenterConfig['liveExecution'] | null>(null);
     const [autoScanState, setAutoScanState] = useState<AutoScanStateResponse | null>(null);
     const [autoScanLoading, setAutoScanLoading] = useState(true);
     const [autoScanError, setAutoScanError] = useState<UiError | null>(null);
     const [runNowPending, setRunNowPending] = useState(false);
+    const autoScanInFlightRef = useRef(false);
 
     useEffect(() => {
         if (!state) {
             return;
         }
-        setPermissionsDraft(state.config.permissions);
-        setScanDraft(state.config.scan);
-        setRiskDraft(state.config.risk);
-        setAlertsDraft(state.config.alerts);
-        setAiDraft(state.config.ai);
-        setDemoDraft(state.config.demoTrading);
+        const normalizedConfig = normalizeControlCenterConfig(state.config);
+        setPermissionsDraft(normalizedConfig.permissions);
+        setScanDraft(normalizedConfig.scan);
+        setRiskDraft(normalizedConfig.risk);
+        setAlertsDraft(normalizedConfig.alerts);
+        setAiDraft(normalizedConfig.ai);
+        setDemoDraft(normalizedConfig.demoTrading);
+        setLiveExecutionDraft(normalizedConfig.liveExecution);
     }, [state]);
 
     useEffect(() => {
@@ -271,6 +278,11 @@ export function PermissionsPage() {
     }, [loadError]);
 
     const loadAutoScanRuntime = useCallback(async () => {
+        if (autoScanInFlightRef.current) {
+            return;
+        }
+
+        autoScanInFlightRef.current = true;
         try {
             const runtime = await getAutoScanState();
             setAutoScanState(runtime);
@@ -286,8 +298,9 @@ export function PermissionsPage() {
             });
         } finally {
             setAutoScanLoading(false);
+            autoScanInFlightRef.current = false;
         }
-    }, []);
+    }, [autoScanInFlightRef]);
 
     useEffect(() => {
         void loadAutoScanRuntime();
@@ -301,7 +314,7 @@ export function PermissionsPage() {
 
     const groupedPermissions = useMemo(() => {
         const byGroup: Record<string, typeof permissions> = {};
-        for (const item of permissions) {
+        for (const item of permissions.filter((entry) => entry.key !== 'live.execution.enabled')) {
             if (!byGroup[item.group]) {
                 byGroup[item.group] = [];
             }
@@ -375,7 +388,7 @@ export function PermissionsPage() {
         }
     };
 
-    if (loading || !state || !scanDraft || !riskDraft || !alertsDraft || !aiDraft || !demoDraft) {
+    if (loading || !state || !scanDraft || !riskDraft || !alertsDraft || !aiDraft || !demoDraft || !liveExecutionDraft) {
         return (
             <div className="rounded-xl border border-slate-700 bg-slate-800 p-6 text-sm text-slate-300">
                 Loading Control Center state...
@@ -437,6 +450,88 @@ export function PermissionsPage() {
                     onRetry={() => void refresh()}
                 />
             )}
+
+            <SectionCard
+                title="Live Execution Runtime"
+                description="Single manual live-execution capability plus the Control Center READ-ONLY trading gate."
+                onSave={() => void handleSave(
+                    'liveExecution',
+                    {
+                        permissions: {
+                            'live.execution.enabled': permissionsDraft['live.execution.enabled'] ?? true,
+                        },
+                        liveExecution: liveExecutionDraft,
+                    },
+                    'Live execution runtime saved',
+                    'live-execution-runtime-save',
+                )}
+                saving={savingSection === 'liveExecution'}
+                disabled={!settingsUpdateAllowed}
+                saveLabel="Save live execution"
+            >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                    <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <p className="text-xs text-slate-400">Capability</p>
+                        <p className={`mt-2 font-semibold ${(permissionsDraft['live.execution.enabled'] ?? true) ? 'text-emerald-300' : 'text-rose-300'}`}>
+                            {(permissionsDraft['live.execution.enabled'] ?? true) ? 'ENABLED' : 'DISABLED'}
+                        </p>
+                    </div>
+                    <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <p className="text-xs text-slate-400">Trading Gate</p>
+                        <p className={`mt-2 font-semibold ${liveExecutionDraft.readOnly ? 'text-amber-300' : 'text-emerald-300'}`}>
+                            {liveExecutionDraft.readOnly ? 'READ ONLY' : 'LIVE MANUAL EXECUTION'}
+                        </p>
+                    </div>
+                    <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <p className="text-xs text-slate-400">Mutation Policy</p>
+                        <p className="mt-2 font-semibold text-slate-100">LOCALHOST ONLY</p>
+                    </div>
+                    <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <p className="text-xs text-slate-400">Flow</p>
+                        <p className="mt-2 font-semibold text-slate-100">MANUAL BUTTON ONLY</p>
+                    </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">Enable manual live execution</span>
+                        <div className="mt-2">
+                            <input
+                                type="checkbox"
+                                checked={permissionsDraft['live.execution.enabled'] ?? true}
+                                disabled={!settingsUpdateAllowed}
+                                onChange={(event) => {
+                                    const checked = event.target.checked;
+                                    setPermissionsDraft((previous) => ({ ...previous, 'live.execution.enabled': checked }));
+                                }}
+                            />
+                        </div>
+                        <p className="mt-2 text-xs text-slate-400">
+                            This is the single capability gate for real manual execution from recommendation detail.
+                        </p>
+                    </label>
+
+                    <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">READ-ONLY mode</span>
+                        <div className="mt-2">
+                            <input
+                                type="checkbox"
+                                checked={liveExecutionDraft.readOnly}
+                                disabled={!settingsUpdateAllowed}
+                                onChange={(event) => setLiveExecutionDraft({ ...liveExecutionDraft, readOnly: event.target.checked })}
+                            />
+                        </div>
+                        <p className="mt-2 text-xs text-slate-400">
+                            When on, live trading stays visible but every real order submission is blocked by the server.
+                        </p>
+                    </label>
+                </div>
+
+                <div className="mt-4 rounded border border-slate-700 bg-slate-950/40 p-3 text-xs text-slate-300">
+                    <p>Canonical runtime source: <span className="font-mono text-slate-100">control_center_state</span></p>
+                    <p className="mt-1">Mutations remain localhost-only. This does not introduce conventional user auth or auto-trading.</p>
+                </div>
+            </SectionCard>
 
             <SectionCard
                 title="Permissions"
@@ -918,6 +1013,21 @@ export function PermissionsPage() {
                                     },
                                 })}
                             />
+                            <RoutingEditor
+                                title="Scan Review"
+                                allowlist={aiDraft.allowlist}
+                                value={aiDraft.live.routing.scanReview}
+                                onChange={(next) => setAiDraft({
+                                    ...aiDraft,
+                                    live: {
+                                        ...aiDraft.live,
+                                        routing: {
+                                            ...aiDraft.live.routing,
+                                            scanReview: next,
+                                        },
+                                    },
+                                })}
+                            />
                         </div>
 
                         <div className="space-y-3 rounded border border-slate-700 bg-slate-900/40 p-3">
@@ -963,6 +1073,21 @@ export function PermissionsPage() {
                                         routing: {
                                             ...aiDraft.demo.routing,
                                             vision: next,
+                                        },
+                                    },
+                                })}
+                            />
+                            <RoutingEditor
+                                title="Scan Review"
+                                allowlist={aiDraft.allowlist}
+                                value={aiDraft.demo.routing.scanReview}
+                                onChange={(next) => setAiDraft({
+                                    ...aiDraft,
+                                    demo: {
+                                        ...aiDraft.demo,
+                                        routing: {
+                                            ...aiDraft.demo.routing,
+                                            scanReview: next,
                                         },
                                     },
                                 })}

@@ -4,6 +4,7 @@ import com.tradebot.dto.ScanChartsDTO;
 import com.tradebot.entity.SymbolEvaluation;
 import com.tradebot.repository.BestCandidateEventRepository;
 import com.tradebot.repository.RecommendationRepository;
+import com.tradebot.repository.ScanCandidateEventRepository;
 import com.tradebot.repository.ScanPhaseEventRepository;
 import com.tradebot.repository.ScanRunRepository;
 import com.tradebot.repository.SymbolEvaluationRepository;
@@ -25,6 +26,7 @@ class ScanChartsAggregationTest {
     private final ScanQueryService service = new ScanQueryService(
             mock(ScanRunRepository.class),
             mock(ScanPhaseEventRepository.class),
+            mock(ScanCandidateEventRepository.class),
             mock(SymbolEvaluationRepository.class),
             mock(RecommendationRepository.class),
             mock(BestCandidateEventRepository.class),

@@ -12,11 +12,13 @@ import com.tradebot.dto.ScanSummaryDTO;
 import com.tradebot.dto.SymbolEvaluationDetailDTO;
 import com.tradebot.dto.SymbolEvaluationRowDTO;
 import com.tradebot.entity.BestCandidateEvent;
+import com.tradebot.entity.ScanCandidateEvent;
 import com.tradebot.entity.ScanPhaseEvent;
 import com.tradebot.entity.ScanRun;
 import com.tradebot.entity.SymbolEvaluation;
 import com.tradebot.repository.BestCandidateEventRepository;
 import com.tradebot.repository.RecommendationRepository;
+import com.tradebot.repository.ScanCandidateEventRepository;
 import com.tradebot.repository.ScanPhaseEventRepository;
 import com.tradebot.repository.ScanRunRepository;
 import com.tradebot.repository.SymbolEvaluationRepository;
@@ -30,6 +32,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -44,6 +47,7 @@ public class ScanQueryService {
 
     private final ScanRunRepository scanRunRepository;
     private final ScanPhaseEventRepository phaseEventRepository;
+    private final ScanCandidateEventRepository scanCandidateEventRepository;
     private final SymbolEvaluationRepository evaluationRepository;
     private final RecommendationRepository recommendationRepository;
     private final BestCandidateEventRepository bestCandidateEventRepository;
@@ -52,7 +56,7 @@ public class ScanQueryService {
 
     public ScanSummaryDTO getLatestScanSummary() {
         ScanRun run = scanRunRepository.findFirstByOrderByStartedAtDesc()
-                .orElseThrow(() -> new IllegalArgumentException("No scan runs found"));
+                .orElseThrow(() -> new NoSuchElementException("No scan runs found"));
         return buildSummary(run);
     }
 
@@ -62,7 +66,7 @@ public class ScanQueryService {
 
     public ScanSummaryDTO getScanSummary(UUID scanRunId) {
         ScanRun run = scanRunRepository.findById(scanRunId)
-                .orElseThrow(() -> new IllegalArgumentException("Scan run not found: " + scanRunId));
+                .orElseThrow(() -> new NoSuchElementException("Scan run not found: " + scanRunId));
         return buildSummary(run);
     }
 
@@ -90,6 +94,12 @@ public class ScanQueryService {
                 .map(this::toBestCandidateEventDTO)
                 .toList();
 
+        List<com.tradebot.dto.ScanCandidateEventDTO> candidateEvents = scanCandidateEventRepository
+                .findByScanRunIdOrderByTsAsc(scanRunId)
+                .stream()
+                .map(this::toCandidateEventDTO)
+                .toList();
+
         List<SymbolEvaluation> allEvals = evaluationRepository.findByScanRunId(scanRunId);
         List<SymbolEvaluationRowDTO> evalRows = allEvals.stream().map(this::toRowDTO).toList();
 
@@ -100,6 +110,7 @@ public class ScanQueryService {
         dto.setPhases(phases);
         dto.setBestCandidateEvents(bestEvents);
         dto.setEvaluations(evalRows);
+        dto.setCandidateEvents(candidateEvents);
         dto.setCharts(charts);
         return dto;
     }
@@ -127,13 +138,18 @@ public class ScanQueryService {
 
     public SymbolEvaluationDetailDTO getEvaluationDetail(UUID scanRunId, String symbol) {
         SymbolEvaluation ev = evaluationRepository.findByScanRunIdAndSymbol(scanRunId, symbol)
-                .orElseThrow(() -> new IllegalArgumentException("Symbol not found: " + symbol));
-        return toDetailDTO(ev);
+                .orElseThrow(() -> new NoSuchElementException("Symbol not found: " + symbol));
+        SymbolEvaluationDetailDTO dto = toDetailDTO(ev);
+        dto.setCandidateEvents(scanCandidateEventRepository.findByScanRunIdAndSymbolOrderByTsAsc(scanRunId, symbol)
+                .stream()
+                .map(this::toCandidateEventDTO)
+                .toList());
+        return dto;
     }
 
     public ExplanationDTO getExplanation(UUID scanRunId, String symbol) {
         SymbolEvaluation ev = evaluationRepository.findByScanRunIdAndSymbol(scanRunId, symbol)
-                .orElseThrow(() -> new IllegalArgumentException("Symbol not found: " + symbol));
+                .orElseThrow(() -> new NoSuchElementException("Symbol not found: " + symbol));
         return explainabilityService.explain(ev);
     }
 
@@ -220,12 +236,21 @@ public class ScanQueryService {
         dto.setCorrelationId(run.getCorrelationId());
         dto.setNotes(run.getNotes());
 
-        long evaluated = evaluationRepository.countByScanRunId(run.getId());
-        long valid = evaluationRepository.countByScanRunIdAndDecision(run.getId(), "VALID");
-        long noTrade = evaluationRepository.countByScanRunIdAndDecision(run.getId(), "NO_TRADE");
+        List<SymbolEvaluation> evaluations = evaluationRepository.findByScanRunId(run.getId());
+        long evaluated = evaluations.size();
+        long valid = evaluations.stream().filter(ev -> "VALID".equalsIgnoreCase(ev.getDecision())).count();
+        long noTrade = evaluations.stream().filter(ev -> "NO_TRADE".equalsIgnoreCase(ev.getDecision())).count();
+        long eligible = evaluations.stream().filter(ev -> Boolean.TRUE.equals(ev.getRecommendationEligible())).count();
+        long blocked = evaluations.stream().filter(ev -> "VALID".equalsIgnoreCase(ev.getDecision()) && !Boolean.TRUE.equals(ev.getRecommendationEligible())).count();
+        long conflicts = evaluations.stream().filter(ev -> ev.getConflictState() != null && !"NONE".equalsIgnoreCase(ev.getConflictState())).count();
+        long dataIntegrityFailures = evaluations.stream().filter(ev -> "DATA_ERROR".equalsIgnoreCase(ev.getSkipReasonCode())).count();
         dto.setEvaluatedCount(evaluated);
         dto.setValidCount(valid);
         dto.setNoTradeCount(noTrade);
+        dto.setEligibleCount(eligible);
+        dto.setBlockedCount(blocked);
+        dto.setConflictCount(conflicts);
+        dto.setDataIntegrityFailureCount(dataIntegrityFailures);
         dto.setEligibleSymbolCount(run.getTopN());
 
         recommendationRepository.findFirstByScanRunIdOrderByCreatedAtDesc(run.getId())
@@ -273,6 +298,13 @@ public class ScanQueryService {
         populateRow(dto, ev);
         dto.setMetrics(parseJson(ev.getMetricsJson()));
         dto.setDiagnostics(parseJson(ev.getDiagnosticsJson()));
+        dto.setSnapshot(parseJson(ev.getSnapshotJson()));
+        dto.setIntegrity(parseJson(ev.getIntegrityJson()));
+        dto.setDeterministicEvidence(parseJson(ev.getDeterministicEvidenceJson()));
+        dto.setValidation(parseJson(ev.getValidationJson()));
+        dto.setConfirmation(parseJson(ev.getConfirmationJson()));
+        dto.setAiReview(parseJson(ev.getAiReviewJson()));
+        dto.setFinalGate(parseJson(ev.getFinalGateJson()));
         return dto;
     }
 
@@ -286,6 +318,27 @@ public class ScanQueryService {
         dto.setQuoteVolumeUsdt(ev.getQuoteVolumeUsdt());
         dto.setSkipReasonCode(ev.getSkipReasonCode());
         dto.setSkipReasonText(ev.getSkipReasonText());
+        dto.setTraceId(ev.getTraceId());
+        dto.setRecommendationEligible(ev.getRecommendationEligible());
+        dto.setFinalIntegrityScore(ev.getFinalIntegrityScore());
+        dto.setConflictState(ev.getConflictState());
+        dto.setCreatedAt(ev.getCreatedAt());
+
+        Map<String, Object> aiReview = parseJson(ev.getAiReviewJson());
+        if (aiReview != null) {
+            Object agreement = aiReview.get("agreementState");
+            Object status = aiReview.get("status");
+            dto.setAiAgreementState(agreement != null ? agreement.toString() : null);
+            dto.setAiReviewStatus(status != null ? status.toString() : null);
+        }
+
+        Map<String, Object> finalGate = parseJson(ev.getFinalGateJson());
+        if (finalGate != null) {
+            Object rejectionReasons = finalGate.get("rejectionReasons");
+            if (rejectionReasons instanceof List<?> list) {
+                dto.setRejectionReasons(list.stream().map(String::valueOf).toList());
+            }
+        }
 
         Map<String, Object> metrics = parseJson(ev.getMetricsJson());
         if (metrics != null) {
@@ -300,6 +353,17 @@ public class ScanQueryService {
             dto.setSl(sl != null ? sl.toString() : null);
             dto.setTp1(tp1 != null ? tp1.toString() : null);
         }
+    }
+
+    private com.tradebot.dto.ScanCandidateEventDTO toCandidateEventDTO(ScanCandidateEvent event) {
+        com.tradebot.dto.ScanCandidateEventDTO dto = new com.tradebot.dto.ScanCandidateEventDTO();
+        dto.setSymbol(event.getSymbol());
+        dto.setStage(event.getStage());
+        dto.setSeq(event.getSeq());
+        dto.setStatus(event.getStatus());
+        dto.setTs(event.getTs());
+        dto.setPayload(parseJson(event.getPayloadJson()));
+        return dto;
     }
 
     private Map<String, Object> parseJson(String json) {

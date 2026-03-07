@@ -99,7 +99,7 @@ class OperatorPermissionControllerWebMvcTest {
                                 }
                                 """))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("FORBIDDEN_NOT_LOCAL"))
+                .andExpect(jsonPath("$.errorCode").value("LOCAL_MUTATION_BLOCKED"))
                 .andExpect(jsonPath("$.message").value("Mutation blocked: endpoint is local-only"));
     }
 }

@@ -36,8 +36,8 @@ function App() {
                   T
                 </div>
                 <Link to="/" className="text-xl font-bold tracking-tight text-white hover:text-blue-200 transition-colors">TradeBot</Link>
-                <span className="rounded-full border border-blue-700/60 bg-blue-700/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-200">
-                  Paper Trading / Learning Mode
+                <span className="rounded-full border border-amber-700/60 bg-amber-900/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+                  Manual Live Execution Only
                 </span>
               </div>
               <nav className="flex flex-wrap justify-end gap-4">
@@ -63,6 +63,7 @@ function App() {
 
           <main className="pb-12 max-w-6xl mx-auto pt-8 px-6">
             <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/scan" element={<LiveScanRoute />} />
               <Route path="/scan/:scanRunId" element={<LiveScanRoute />} />

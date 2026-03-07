@@ -108,6 +108,10 @@ export function CoinDetailDrawer({ scanRunId, symbol, onClose }: CoinDetailDrawe
                                 <HighlightBox label="Side" value={detail.side} isSuccess={detail.side !== 'NONE'} />
                                 <HighlightBox label="Final Score" value={detail.finalScore?.toFixed(2) || '-'} />
                                 <HighlightBox label="24h Volume" value={detail.quoteVolumeUsdt ? `$${(detail.quoteVolumeUsdt / 1_000_000).toFixed(1)}M` : '-'} />
+                                <HighlightBox label="Integrity" value={detail.finalIntegrityScore != null ? `${detail.finalIntegrityScore}` : '-'} isSuccess={(detail.finalIntegrityScore ?? 0) >= 80} />
+                                <HighlightBox label="Gate" value={detail.recommendationEligible ? 'READY' : 'BLOCKED'} isSuccess={detail.recommendationEligible === true} isError={detail.recommendationEligible === false && detail.decision === 'VALID'} />
+                                <HighlightBox label="Conflict" value={detail.conflictState || 'NONE'} isError={!!detail.conflictState && detail.conflictState !== 'NONE'} />
+                                <HighlightBox label="AI Review" value={detail.aiAgreementState || detail.aiReviewStatus || 'N/A'} />
                             </div>
 
                             {/* Human Explainability AI Box */}
@@ -143,24 +147,41 @@ export function CoinDetailDrawer({ scanRunId, symbol, onClose }: CoinDetailDrawe
 
                             {/* Raw JSONs */}
                             {detail.diagnostics && (
-                                <div>
-                                    <h3 className="text-sm font-semibold text-slate-300 mb-2 uppercase tracking-wider flex items-center gap-2">
-                                        Diagnostics Snapshot
-                                    </h3>
-                                    <pre className="bg-slate-900/50 p-4 rounded-lg text-xs font-mono text-emerald-400 overflow-x-auto border border-slate-700 border-l-4 border-l-emerald-500">
-                                        {JSON.stringify(detail.diagnostics, null, 2)}
-                                    </pre>
-                                </div>
+                                <JsonSection title="Diagnostics Snapshot" accent="border-l-emerald-500" color="text-emerald-400" value={detail.diagnostics} />
                             )}
 
                             {detail.metrics && (
-                                <div>
-                                    <h3 className="text-sm font-semibold text-slate-300 mb-2 uppercase tracking-wider flex items-center gap-2">
-                                        Metrics Snapshot
-                                    </h3>
-                                    <pre className="bg-slate-900/50 p-4 rounded-lg text-xs font-mono text-blue-400 overflow-x-auto border border-slate-700 border-l-4 border-l-blue-500">
-                                        {JSON.stringify(detail.metrics, null, 2)}
-                                    </pre>
+                                <JsonSection title="Metrics Snapshot" accent="border-l-blue-500" color="text-blue-400" value={detail.metrics} />
+                            )}
+
+                            {detail.snapshot && <JsonSection title="Frozen Snapshot" accent="border-l-cyan-500" color="text-cyan-300" value={detail.snapshot} />}
+                            {detail.integrity && <JsonSection title="Integrity Audit" accent="border-l-rose-500" color="text-rose-300" value={detail.integrity} />}
+                            {detail.validation && <JsonSection title="Structural Validation" accent="border-l-amber-500" color="text-amber-300" value={detail.validation} />}
+                            {detail.confirmation && <JsonSection title="Second-Pass Confirmation" accent="border-l-orange-500" color="text-orange-300" value={detail.confirmation} />}
+                            {detail.aiReview && <JsonSection title="AI Comparative Review" accent="border-l-fuchsia-500" color="text-fuchsia-300" value={detail.aiReview} />}
+                            {detail.finalGate && <JsonSection title="Final Recommendation Gate" accent="border-l-lime-500" color="text-lime-300" value={detail.finalGate} />}
+
+                            {detail.candidateEvents && detail.candidateEvents.length > 0 && (
+                                <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
+                                    <h3 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Candidate Stage Timeline</h3>
+                                    <div className="space-y-2">
+                                        {detail.candidateEvents.map((event) => (
+                                            <div key={`${event.stage}-${event.seq}`} className="flex items-start justify-between gap-3 border-b border-slate-800/70 pb-2 last:border-b-0 last:pb-0">
+                                                <div>
+                                                    <div className="font-mono text-xs text-slate-200">{event.stage}</div>
+                                                    <div className="text-[11px] text-slate-500">{new Date(event.ts).toLocaleTimeString()}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-xs text-blue-300">{event.status}</div>
+                                                    {event.payload && (
+                                                        <div className="text-[11px] text-slate-500 truncate max-w-[220px]">
+                                                            {JSON.stringify(event.payload)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
 
@@ -191,6 +212,29 @@ function PlanRow({ label, value, highlight }: { label: string, value: string, hi
         <div className="flex justify-between items-center border-b border-slate-800/50 pb-1">
             <span className="text-slate-500">{label}</span>
             <span className={`font-mono ${highlight ? 'text-emerald-400 font-bold' : 'text-slate-300'}`}>{value}</span>
+        </div>
+    );
+}
+
+function JsonSection({
+    title,
+    accent,
+    color,
+    value,
+}: {
+    title: string;
+    accent: string;
+    color: string;
+    value: unknown;
+}) {
+    return (
+        <div>
+            <h3 className="text-sm font-semibold text-slate-300 mb-2 uppercase tracking-wider flex items-center gap-2">
+                {title}
+            </h3>
+            <pre className={`bg-slate-900/50 p-4 rounded-lg text-xs font-mono overflow-x-auto border border-slate-700 border-l-4 ${accent} ${color}`}>
+                {JSON.stringify(value, null, 2)}
+            </pre>
         </div>
     );
 }

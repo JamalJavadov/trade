@@ -176,10 +176,107 @@ export interface DemoAiSuggestionLatest {
     activeConfigVersion: DemoConfigVersion | null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
+function toScalar(value: unknown): string | number | null {
+    return typeof value === 'string' || typeof value === 'number' ? value : null;
+}
+
+function normalizeDemoTradeRow(value: unknown): DemoTradeRow {
+    const row = isRecord(value) ? value : {};
+    return {
+        id: String(row.id ?? ''),
+        openedAt: typeof row.openedAt === 'string' ? row.openedAt : null,
+        closedAt: typeof row.closedAt === 'string' ? row.closedAt : null,
+        symbol: String(row.symbol ?? ''),
+        side: String(row.side ?? ''),
+        status: String(row.status ?? ''),
+        closeReason: typeof row.closeReason === 'string' ? row.closeReason : null,
+        stage: typeof row.stage === 'number' ? row.stage : null,
+        remainingQty: toScalar(row.remainingQty),
+        pnlUsdt: toScalar(row.pnlUsdt),
+        rMultiple: toScalar(row.rMultiple ?? row.rmultiple),
+    };
+}
+
+function normalizeDemoTradeDetail(value: unknown): DemoTradeDetail {
+    const detail = isRecord(value) ? value : {};
+    return {
+        id: String(detail.id ?? ''),
+        createdAt: typeof detail.createdAt === 'string' ? detail.createdAt : null,
+        openedAt: typeof detail.openedAt === 'string' ? detail.openedAt : null,
+        closedAt: typeof detail.closedAt === 'string' ? detail.closedAt : null,
+        symbol: String(detail.symbol ?? ''),
+        side: String(detail.side ?? ''),
+        leverage: typeof detail.leverage === 'number' ? detail.leverage : null,
+        qty: toScalar(detail.qty),
+        remainingQty: toScalar(detail.remainingQty),
+        entryPrice: toScalar(detail.entryPrice),
+        slPrice: toScalar(detail.slPrice),
+        currentSlPrice: toScalar(detail.currentSlPrice),
+        tp1Price: toScalar(detail.tp1Price),
+        tp2Price: toScalar(detail.tp2Price),
+        tp3Price: toScalar(detail.tp3Price),
+        workingType: typeof detail.workingType === 'string' ? detail.workingType : null,
+        status: String(detail.status ?? ''),
+        closeReason: typeof detail.closeReason === 'string' ? detail.closeReason : null,
+        stage: typeof detail.stage === 'number' ? detail.stage : null,
+        riskUsdtInitial: toScalar(detail.riskUsdtInitial),
+        realizedPnlUsdt: toScalar(detail.realizedPnlUsdt),
+        entryFeeUsdt: toScalar(detail.entryFeeUsdt),
+        exitFeeUsdt: toScalar(detail.exitFeeUsdt),
+        totalFeesUsdt: toScalar(detail.totalFeesUsdt),
+        lastMarkPrice: toScalar(detail.lastMarkPrice),
+        pnlUsdt: toScalar(detail.pnlUsdt),
+        rMultiple: toScalar(detail.rMultiple ?? detail.rmultiple),
+        snapshotJson: typeof detail.snapshotJson === 'string' ? detail.snapshotJson : null,
+    };
+}
+
+function normalizeDemoTradeList(value: unknown): DemoTradeListResponse {
+    const raw = isRecord(value) ? value : {};
+    return {
+        limit: typeof raw.limit === 'number' ? raw.limit : 0,
+        offset: typeof raw.offset === 'number' ? raw.offset : 0,
+        total: typeof raw.total === 'number' ? raw.total : 0,
+        trades: Array.isArray(raw.trades) ? raw.trades.map(normalizeDemoTradeRow) : [],
+    };
+}
+
+function normalizeDemoStatus(value: unknown): DemoStatusResponse {
+    const raw = isRecord(value) ? value : {};
+    return {
+        enabled: Boolean(raw.enabled),
+        running: Boolean(raw.running),
+        intervalMinutes: typeof raw.intervalMinutes === 'number' ? raw.intervalMinutes : 0,
+        maxOpenPositions: typeof raw.maxOpenPositions === 'number' ? raw.maxOpenPositions : 0,
+        account: isRecord(raw.account)
+            ? {
+                balanceUsdt: toScalar(raw.account.balanceUsdt),
+                equityUsdt: toScalar(raw.account.equityUsdt),
+            }
+            : null,
+        openPositionsCount: typeof raw.openPositionsCount === 'number' ? raw.openPositionsCount : 0,
+        closedTradesCount: typeof raw.closedTradesCount === 'number' ? raw.closedTradesCount : 0,
+        lastDemoRunStatus: String(raw.lastDemoRunStatus ?? 'UNKNOWN'),
+        cycleCountTotal: typeof raw.cycleCountTotal === 'number' ? raw.cycleCountTotal : 0,
+        cycleCountFinished: typeof raw.cycleCountFinished === 'number' ? raw.cycleCountFinished : 0,
+        cycleCountFailed: typeof raw.cycleCountFailed === 'number' ? raw.cycleCountFailed : 0,
+        cycleRunning: Boolean(raw.cycleRunning),
+        workflowPhase: String(raw.workflowPhase ?? 'UNKNOWN'),
+        lastDemoTradeSummary: raw.lastDemoTradeSummary ? normalizeDemoTradeRow(raw.lastDemoTradeSummary) : null,
+        lastOpenTrade: raw.lastOpenTrade ? normalizeDemoTradeRow(raw.lastOpenTrade) : null,
+        lastClosedTrade: raw.lastClosedTrade ? normalizeDemoTradeRow(raw.lastClosedTrade) : null,
+        winRate: toScalar(raw.winRate),
+    };
+}
+
 export const demoApi = {
     async getStatus(): Promise<DemoStatusResponse> {
         const response = await apiClient.get<DemoStatusResponse>(`${DEMO_API_PREFIX}/status`);
-        return response.data;
+        return normalizeDemoStatus(response.data);
     },
 
     async enable(): Promise<DemoActionResponse> {
@@ -210,17 +307,17 @@ export const demoApi = {
         const response = await apiClient.get<DemoTradeListResponse>(`${DEMO_API_PREFIX}/trades`, {
             params: { limit, offset },
         });
-        return response.data;
+        return normalizeDemoTradeList(response.data);
     },
 
     async getTrade(id: string): Promise<DemoTradeDetail> {
         const response = await apiClient.get<DemoTradeDetail>(`${DEMO_API_PREFIX}/trades/${id}`);
-        return response.data;
+        return normalizeDemoTradeDetail(response.data);
     },
 
     async getOpenTrades(): Promise<DemoTradeListResponse> {
         const response = await apiClient.get<DemoTradeListResponse>(`${DEMO_API_PREFIX}/open-trades`);
-        return response.data;
+        return normalizeDemoTradeList(response.data);
     },
 
     async getAnalytics(lookback: 10 | 50 | 100): Promise<DemoAnalyticsSummary> {

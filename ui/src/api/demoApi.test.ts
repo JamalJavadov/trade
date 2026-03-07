@@ -27,6 +27,80 @@ describe('demoApi', () => {
         expect(getMock).toHaveBeenCalledWith('/api/v1/demo-trading/status');
     });
 
+    it('normalizes legacy rmultiple fields from demo payloads', async () => {
+        getMock.mockResolvedValueOnce({
+            data: {
+                enabled: true,
+                running: true,
+                intervalMinutes: 15,
+                maxOpenPositions: 1,
+                account: null,
+                openPositionsCount: 0,
+                closedTradesCount: 1,
+                lastDemoRunStatus: 'FINISHED',
+                cycleCountTotal: 1,
+                cycleCountFinished: 1,
+                cycleCountFailed: 0,
+                cycleRunning: false,
+                workflowPhase: 'IDLE',
+                lastDemoTradeSummary: {
+                    id: 'trade-1',
+                    status: 'CLOSED',
+                    side: 'LONG',
+                    symbol: 'BTCUSDT',
+                    openedAt: null,
+                    closedAt: null,
+                    closeReason: null,
+                    stage: 3,
+                    remainingQty: 0,
+                    pnlUsdt: 12.5,
+                    rmultiple: 2.5,
+                },
+                lastOpenTrade: null,
+                lastClosedTrade: null,
+                winRate: 0.5,
+            },
+        });
+        getMock.mockResolvedValueOnce({
+            data: {
+                id: 'trade-1',
+                createdAt: null,
+                openedAt: null,
+                closedAt: null,
+                symbol: 'BTCUSDT',
+                side: 'LONG',
+                leverage: 5,
+                qty: 0.1,
+                remainingQty: 0.1,
+                entryPrice: 50000,
+                slPrice: 49000,
+                currentSlPrice: 49000,
+                tp1Price: 51000,
+                tp2Price: null,
+                tp3Price: null,
+                workingType: 'MARK_PRICE',
+                status: 'OPEN',
+                closeReason: null,
+                stage: 1,
+                riskUsdtInitial: 10,
+                realizedPnlUsdt: 0,
+                entryFeeUsdt: 0.1,
+                exitFeeUsdt: 0,
+                totalFeesUsdt: 0.1,
+                lastMarkPrice: 50010,
+                pnlUsdt: 0,
+                rmultiple: 1.75,
+                snapshotJson: '{}',
+            },
+        });
+
+        const status = await demoApi.getStatus();
+        const trade = await demoApi.getTrade('trade-1');
+
+        expect(status.lastDemoTradeSummary?.rMultiple).toBe(2.5);
+        expect(trade.rMultiple).toBe(1.75);
+    });
+
     it('calls enable/disable/runOnce endpoints', async () => {
         postMock.mockResolvedValue({ data: { message: 'ok', running: true } });
 

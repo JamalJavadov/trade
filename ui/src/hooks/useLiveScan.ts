@@ -1,20 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type {
     ScanSummaryDTO,
+    ScanCandidateEventDTO,
     SymbolEvaluationRowDTO,
     ScanPhaseDTO,
     ScanChartsDTO
 } from '../types/scan';
 import { useErrorStore } from '../store/errorStore';
 import { getScan, getScanCharts, getScanEvaluations } from '../api/scan';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+import { buildApiUrl } from '../api/axiosSetup';
 
 interface ScanProgress {
     evaluated: number;
     total: number;
     validCount: number;
     noTradeCount: number;
+    eligibleCount?: number;
     dataErrorCount?: number;
 }
 
@@ -46,6 +47,7 @@ export function useLiveScan(scanRunId: string | null) {
     const [progress, setProgress] = useState<ScanProgress | null>(null);
     const [evaluations, setEvaluations] = useState<Map<string, SymbolEvaluationRowDTO>>(new Map());
     const [bestReco, setBestReco] = useState<BestRecommendation | null>(null);
+    const [latestCandidateEvent, setLatestCandidateEvent] = useState<ScanCandidateEventDTO | null>(null);
 
     const [finalSummary, setFinalSummary] = useState<ScanSummaryDTO | null>(null);
     const [finalCharts, setFinalCharts] = useState<ScanChartsDTO | null>(null);
@@ -62,6 +64,8 @@ export function useLiveScan(scanRunId: string | null) {
     const terminalRef = useRef<boolean>(false);
     const evalBufferRef = useRef<Map<string, SymbolEvaluationRowDTO>>(new Map());
     const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const finalHydrateInFlightRef = useRef<Promise<void> | null>(null);
+    const pollingInFlightRef = useRef(false);
 
     const updateStatus = useCallback((next: string) => {
         statusRef.current = next;
@@ -88,38 +92,51 @@ export function useLiveScan(scanRunId: string | null) {
     }, [flushEvaluations]);
 
     const runFinalHydrate = useCallback(async (id: string) => {
-        try {
-            const [summaryRes, chartsRes, evalsRes] = await Promise.all([
-                getScan(id),
-                getScanCharts(id),
-                getScanEvaluations(id, { limit: 300 })
-            ]);
-
-            const evalRows = evalsRes.content ?? [];
-            setSummary(summaryRes);
-            setPhases(summaryRes.phases ?? []);
-            setProgress({
-                evaluated: summaryRes.evaluatedCount ?? evalRows.length,
-                total: summaryRes.topN ?? 300,
-                validCount: summaryRes.validCount ?? 0,
-                noTradeCount: summaryRes.noTradeCount ?? 0,
-            });
-
-            setFinalSummary(summaryRes);
-            setFinalCharts(chartsRes ?? emptyCharts());
-            setFinalEvals(evalRows);
-            setEvaluations(new Map(evalRows.map(row => [row.symbol, row])));
-            setLastUpdatedAt(new Date().toLocaleTimeString());
-        } catch (err) {
-            useErrorStore.getState().addError({
-                timestamp: new Date().toISOString(),
-                path: `/api/v1/scans/${id}`,
-                errorCode: 'INTERNAL',
-                message: 'Failed to hydrate final scan details',
-                details: err instanceof Error ? err.stack || err.message : err,
-                traceId: `local-${Date.now()}`
-            });
+        if (finalHydrateInFlightRef.current) {
+            return finalHydrateInFlightRef.current;
         }
+
+        const request = (async () => {
+            try {
+                const [summaryRes, chartsRes, evalsRes] = await Promise.all([
+                    getScan(id),
+                    getScanCharts(id),
+                    getScanEvaluations(id, { limit: 300 })
+                ]);
+
+                const evalRows = evalsRes.content ?? [];
+                setSummary(summaryRes);
+                setPhases(summaryRes.phases ?? []);
+                setProgress({
+                    evaluated: summaryRes.evaluatedCount ?? evalRows.length,
+                    total: summaryRes.topN ?? 300,
+                    validCount: summaryRes.validCount ?? 0,
+                    noTradeCount: summaryRes.noTradeCount ?? 0,
+                    eligibleCount: summaryRes.eligibleCount ?? 0,
+                    dataErrorCount: summaryRes.dataIntegrityFailureCount ?? 0,
+                });
+
+                setFinalSummary(summaryRes);
+                setFinalCharts(chartsRes ?? emptyCharts());
+                setFinalEvals(evalRows);
+                setEvaluations(new Map(evalRows.map(row => [row.symbol, row])));
+                setLastUpdatedAt(new Date().toLocaleTimeString());
+            } catch (err) {
+                useErrorStore.getState().addError({
+                    timestamp: new Date().toISOString(),
+                    path: `/api/v1/scans/${id}`,
+                    errorCode: 'INTERNAL',
+                    message: 'Failed to hydrate final scan details',
+                    details: err instanceof Error ? err.stack || err.message : err,
+                    traceId: `local-${Date.now()}`
+                });
+            } finally {
+                finalHydrateInFlightRef.current = null;
+            }
+        })();
+
+        finalHydrateInFlightRef.current = request;
+        return request;
     }, []);
 
     useEffect(() => {
@@ -130,6 +147,7 @@ export function useLiveScan(scanRunId: string | null) {
             setProgress(null);
             setEvaluations(new Map());
             setBestReco(null);
+            setLatestCandidateEvent(null);
             setFinalSummary(null);
             setFinalCharts(null);
             setFinalEvals([]);
@@ -146,6 +164,7 @@ export function useLiveScan(scanRunId: string | null) {
         setProgress(null);
         setEvaluations(new Map());
         setBestReco(null);
+        setLatestCandidateEvent(null);
         setFinalSummary(null);
         setFinalCharts(null);
         setFinalEvals([]);
@@ -154,6 +173,8 @@ export function useLiveScan(scanRunId: string | null) {
         setReconnecting(false);
         setPolling(false);
         terminalRef.current = false;
+        finalHydrateInFlightRef.current = null;
+        pollingInFlightRef.current = false;
 
         let isSubscribed = true;
         let retryCount = 0;
@@ -175,7 +196,7 @@ export function useLiveScan(scanRunId: string | null) {
         const connect = () => {
             if (!isSubscribed || terminalRef.current) return;
 
-            const url = `${API_BASE}/api/v1/scans/${scanRunId}/stream`;
+            const url = buildApiUrl(`/api/v1/scans/${scanRunId}/stream`);
             const es = new EventSource(url);
             eventSourceRef.current = es;
 
@@ -226,6 +247,30 @@ export function useLiveScan(scanRunId: string | null) {
                 }));
             });
 
+            es.addEventListener("phase.started", (e: unknown) => {
+                const event = asMessageEvent(e);
+                if (!event) return;
+                const data = JSON.parse(event.data);
+                setPhases(prev => {
+                    const next = [...prev];
+                    const existing = next.findIndex(p => p.phase === data.phase);
+                    const newPhase: ScanPhaseDTO = {
+                        phase: data.phase,
+                        status: data.status,
+                        startedAt: data.ts,
+                        finishedAt: null,
+                        durationMs: null,
+                        meta: data.meta || {}
+                    };
+                    if (existing >= 0) {
+                        next[existing] = { ...next[existing], ...newPhase };
+                    } else {
+                        next.push(newPhase);
+                    }
+                    return next;
+                });
+            });
+
             es.addEventListener("phase.finished", (e: unknown) => {
                 const event = asMessageEvent(e);
                 if (!event) return;
@@ -258,7 +303,23 @@ export function useLiveScan(scanRunId: string | null) {
                     evaluated: data.evaluated ?? 0,
                     total: data.total ?? 0,
                     validCount: data.validCount ?? 0,
-                    noTradeCount: data.noTradeCount ?? 0
+                    noTradeCount: data.noTradeCount ?? 0,
+                    eligibleCount: data.eligibleCount ?? 0,
+                    dataErrorCount: data.dataErrorCount ?? 0,
+                });
+            });
+
+            es.addEventListener("candidate.stage", (e: unknown) => {
+                const event = asMessageEvent(e);
+                if (!event) return;
+                const data = JSON.parse(event.data);
+                setLatestCandidateEvent({
+                    symbol: data.symbol ?? '',
+                    stage: data.stage ?? '',
+                    seq: Number(data.seq ?? 0),
+                    status: data.status ?? '',
+                    ts: data.ts ?? '',
+                    payload: data.payload ?? null,
                 });
             });
 
@@ -335,6 +396,11 @@ export function useLiveScan(scanRunId: string | null) {
 
         setPolling(true);
         const fallbackInterval = setInterval(async () => {
+            if (pollingInFlightRef.current) {
+                return;
+            }
+
+            pollingInFlightRef.current = true;
             try {
                 const latest = await getScan(scanRunId);
                 setSummary(latest);
@@ -344,6 +410,8 @@ export function useLiveScan(scanRunId: string | null) {
                     total: latest.topN ?? 300,
                     validCount: latest.validCount ?? 0,
                     noTradeCount: latest.noTradeCount ?? 0,
+                    eligibleCount: latest.eligibleCount ?? 0,
+                    dataErrorCount: latest.dataIntegrityFailureCount ?? 0,
                 });
 
                 if (latest.status === "FINISHED" || latest.status === "FAILED") {
@@ -356,12 +424,15 @@ export function useLiveScan(scanRunId: string | null) {
                 }
             } catch {
                 // continue retrying
+            } finally {
+                pollingInFlightRef.current = false;
             }
         }, 4000);
 
         return () => {
             clearInterval(fallbackInterval);
             setPolling(false);
+            pollingInFlightRef.current = false;
         };
     }, [scanRunId, sseConnected, status, runFinalHydrate, updateStatus]);
 
@@ -374,12 +445,13 @@ export function useLiveScan(scanRunId: string | null) {
                 summary,
                 progress,
                 bestReco,
+                latestCandidateEvent,
                 finalSummaryStatus: finalSummary?.status ?? null,
                 lastUpdatedAt: lastUpdatedAt ?? null,
             },
             updatedAt: new Date().toISOString(),
         });
-    }, [bestReco, finalSummary?.status, lastUpdatedAt, progress, scanRunId, status, summary]);
+    }, [bestReco, finalSummary?.status, lastUpdatedAt, latestCandidateEvent, progress, scanRunId, status, summary]);
 
     return {
         status,
@@ -388,6 +460,7 @@ export function useLiveScan(scanRunId: string | null) {
         progress,
         evaluations,
         bestReco,
+        latestCandidateEvent,
         sseConnected,
         reconnecting,
         polling,

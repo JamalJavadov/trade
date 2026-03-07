@@ -17,6 +17,10 @@ public class ScanSummaryDTO {
     private long evaluatedCount;
     private long validCount;
     private long noTradeCount;
+    private long eligibleCount;
+    private long blockedCount;
+    private long conflictCount;
+    private long dataIntegrityFailureCount;
     private String triggerType;
     private String errorCode;
     private String correlationId;

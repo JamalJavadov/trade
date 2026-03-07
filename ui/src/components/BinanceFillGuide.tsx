@@ -474,7 +474,8 @@ export const BinanceFillGuide: React.FC<Props> = ({ rec, onLockStateChange }) =>
             )}
 
             <p className="text-xs text-gray-600 mt-4 text-center">
-                This guide is informational only. The bot does NOT place orders.
+                This guide covers manual review and manual entry guidance. Real Binance execution is only available from
+                the dedicated confirmation button on the recommendation detail page.
             </p>
         </div>
     );

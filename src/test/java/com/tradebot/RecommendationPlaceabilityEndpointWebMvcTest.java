@@ -6,6 +6,9 @@ import com.tradebot.dto.RecommendationPlaceabilityDTO;
 import com.tradebot.exception.GlobalExceptionHandler;
 import com.tradebot.repository.RecommendationRepository;
 import com.tradebot.repository.TradeExecutionFeedbackRepository;
+import com.tradebot.security.LocalMutationGuard;
+import com.tradebot.service.LiveTradingExecutionService;
+import com.tradebot.service.LiveTradingPreflightService;
 import com.tradebot.service.RecommendationPlaceabilityService;
 import com.tradebot.service.RecommendationQueryService;
 import com.tradebot.service.SuggestionBatchService;
@@ -47,6 +50,15 @@ class RecommendationPlaceabilityEndpointWebMvcTest {
 
     @MockBean
     private RecommendationQueryService recommendationQueryService;
+
+    @MockBean
+    private LiveTradingPreflightService liveTradingPreflightService;
+
+    @MockBean
+    private LiveTradingExecutionService liveTradingExecutionService;
+
+    @MockBean
+    private LocalMutationGuard localMutationGuard;
 
     @Test
     void endpointReturnsStableJsonForValidUuid() throws Exception {

@@ -84,6 +84,9 @@ const PERMISSION_REFRESH_INTERVAL_MS = 60_000;
 const LEGACY_ALIAS_MAP: Record<string, string> = {
     'scan.autoscan.enable': 'scan.autoscan.toggle',
     'ai.models.manage': 'ai.models.update',
+    'live.execution.view': 'live.execution.enabled',
+    'live.execution.run': 'live.execution.enabled',
+    'live.execution.reconcile': 'live.execution.enabled',
 };
 
 function toControlCenterError(error: unknown, operation: ControlCenterError['operation']): ControlCenterError {

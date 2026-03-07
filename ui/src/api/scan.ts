@@ -6,6 +6,10 @@ function normalizeSummary(raw: ScanSummaryDTO): ScanSummaryDTO {
     return {
         ...raw,
         phases: Array.isArray(raw.phases) ? raw.phases : [],
+        eligibleCount: raw.eligibleCount ?? 0,
+        blockedCount: raw.blockedCount ?? 0,
+        conflictCount: raw.conflictCount ?? 0,
+        dataIntegrityFailureCount: raw.dataIntegrityFailureCount ?? 0,
     };
 }
 
@@ -25,7 +29,27 @@ function normalizeEvaluationRow(raw: any): SymbolEvaluationRowDTO {
         tp1: raw.tp1 ?? null,
         skipReasonCode: raw.skipReasonCode ?? null,
         skipReasonText: raw.skipReasonText ?? null,
-        createdAt: raw.createdAt ?? '',
+        traceId: raw.traceId ?? null,
+        recommendationEligible: raw.recommendationEligible ?? null,
+        finalIntegrityScore: raw.finalIntegrityScore ?? null,
+        conflictState: raw.conflictState ?? null,
+        aiAgreementState: raw.aiAgreementState ?? null,
+        aiReviewStatus: raw.aiReviewStatus ?? null,
+        rejectionReasons: Array.isArray(raw.rejectionReasons) ? raw.rejectionReasons : [],
+        latestCandidateStage: raw.latestCandidateStage ?? null,
+        latestCandidateStageStatus: raw.latestCandidateStageStatus ?? null,
+        createdAt: raw.createdAt ?? null,
+    };
+}
+
+function normalizeCandidateEvent(raw: any) {
+    return {
+        symbol: raw?.symbol ?? '',
+        stage: raw?.stage ?? '',
+        seq: Number(raw?.seq ?? 0),
+        status: raw?.status ?? '',
+        ts: raw?.ts ?? '',
+        payload: raw?.payload ?? null,
     };
 }
 
@@ -85,6 +109,16 @@ export const getScanEvaluationDetail = async (scanRunId: string, symbol: string)
         ...row,
         metrics: (res.data as any).metrics ?? null,
         diagnostics: (res.data as any).diagnostics ?? null,
+        snapshot: (res.data as any).snapshot ?? null,
+        integrity: (res.data as any).integrity ?? null,
+        deterministicEvidence: (res.data as any).deterministicEvidence ?? null,
+        validation: (res.data as any).validation ?? null,
+        confirmation: (res.data as any).confirmation ?? null,
+        aiReview: (res.data as any).aiReview ?? null,
+        finalGate: (res.data as any).finalGate ?? null,
+        candidateEvents: Array.isArray((res.data as any).candidateEvents)
+            ? (res.data as any).candidateEvents.map(normalizeCandidateEvent)
+            : [],
     };
 };
 
@@ -104,6 +138,9 @@ export const getReplay = async (scanRunId: string): Promise<ScanReplayDTO> => {
         ...res.data,
         summary: normalizeSummary(res.data.summary),
         evaluations: Array.isArray(res.data.evaluations) ? res.data.evaluations.map(normalizeEvaluationRow) : [],
+        candidateEvents: Array.isArray((res.data as any).candidateEvents)
+            ? (res.data as any).candidateEvents.map(normalizeCandidateEvent)
+            : [],
         charts: normalizeCharts(res.data.charts),
     };
 };

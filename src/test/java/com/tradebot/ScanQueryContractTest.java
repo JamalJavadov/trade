@@ -5,6 +5,7 @@ import com.tradebot.dto.SymbolEvaluationDetailDTO;
 import com.tradebot.entity.SymbolEvaluation;
 import com.tradebot.repository.BestCandidateEventRepository;
 import com.tradebot.repository.RecommendationRepository;
+import com.tradebot.repository.ScanCandidateEventRepository;
 import com.tradebot.repository.ScanPhaseEventRepository;
 import com.tradebot.repository.ScanRunRepository;
 import com.tradebot.repository.SymbolEvaluationRepository;
@@ -27,6 +28,7 @@ class ScanQueryContractTest {
     void evaluationDetailExposesLiveScanFieldNames() throws Exception {
         ScanRunRepository scanRunRepository = mock(ScanRunRepository.class);
         ScanPhaseEventRepository scanPhaseEventRepository = mock(ScanPhaseEventRepository.class);
+        ScanCandidateEventRepository scanCandidateEventRepository = mock(ScanCandidateEventRepository.class);
         SymbolEvaluationRepository evaluationRepository = mock(SymbolEvaluationRepository.class);
         RecommendationRepository recommendationRepository = mock(RecommendationRepository.class);
         BestCandidateEventRepository bestCandidateEventRepository = mock(BestCandidateEventRepository.class);
@@ -35,6 +37,7 @@ class ScanQueryContractTest {
         ScanQueryService service = new ScanQueryService(
                 scanRunRepository,
                 scanPhaseEventRepository,
+                scanCandidateEventRepository,
                 evaluationRepository,
                 recommendationRepository,
                 bestCandidateEventRepository,

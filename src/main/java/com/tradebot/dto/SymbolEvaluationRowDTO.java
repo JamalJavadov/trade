@@ -2,6 +2,7 @@ package com.tradebot.dto;
 
 import lombok.Data;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 public class SymbolEvaluationRowDTO {
@@ -21,4 +22,14 @@ public class SymbolEvaluationRowDTO {
     private String tp1;
     private String skipReasonCode;
     private String skipReasonText;
+    private String traceId;
+    private Boolean recommendationEligible;
+    private Integer finalIntegrityScore;
+    private String conflictState;
+    private String aiAgreementState;
+    private String aiReviewStatus;
+    private List<String> rejectionReasons;
+    private String latestCandidateStage;
+    private String latestCandidateStageStatus;
+    private java.time.Instant createdAt;
 }

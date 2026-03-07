@@ -22,7 +22,10 @@ public class OperatorPermissionService {
 
     private static final Map<String, String> LEGACY_KEY_ALIASES = Map.of(
             "scan.autoscan.enable", "scan.autoscan.toggle",
-            "ai.models.manage", "ai.models.update");
+            "ai.models.manage", "ai.models.update",
+            "live.execution.view", "live.execution.enabled",
+            "live.execution.run", "live.execution.enabled",
+            "live.execution.reconcile", "live.execution.enabled");
 
     private final PermissionCatalog permissionCatalog;
     private final ControlCenterSettingsProvider controlCenterSettingsProvider;

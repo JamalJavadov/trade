@@ -11,6 +11,7 @@ import com.tradebot.entity.Recommendation;
 import com.tradebot.entity.SymbolEvaluation;
 import com.tradebot.repository.RecommendationRepository;
 import com.tradebot.repository.SymbolEvaluationRepository;
+import com.tradebot.service.LiveTradingBlockerCodes;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
@@ -152,7 +153,9 @@ public class RecommendationPlaceabilityService {
             return notPlaceable(dto, "BINANCE_RATE_LIMIT", text);
         }
         if (status == 401 || status == 403) {
-            return notPlaceable(dto, "BINANCE_AUTH", "Binance authentication/permission failed.");
+            return notPlaceable(dto,
+                    LiveTradingBlockerCodes.BINANCE_AUTH_INVALID,
+                    "Binance authentication/permission failed.");
         }
         return notPlaceable(dto, "BINANCE_UNAVAILABLE", "Binance request failed with status " + status + ".");
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function usePolling<T>(
     fetchFn: () => Promise<T>,
@@ -8,27 +8,40 @@ export function usePolling<T>(
     const [data, setData] = useState<T | null>(null);
     const [error, setError] = useState<Error | null>(null);
     const [loading, setLoading] = useState(true);
+    const inFlightRef = useRef<Promise<void> | null>(null);
 
-    const fetchData = async () => {
-        try {
-            const result = await fetchFn();
-            setData(result);
-            setError(null);
-        } catch (err) {
-            setError(err instanceof Error ? err : new Error('Unknown error'));
-        } finally {
-            setLoading(false);
+    const fetchData = useCallback(async () => {
+        if (inFlightRef.current) {
+            return inFlightRef.current;
         }
-    };
+
+        const request = (async () => {
+            try {
+                const result = await fetchFn();
+                setData(result);
+                setError(null);
+            } catch (err) {
+                setError(err instanceof Error ? err : new Error('Unknown error'));
+            } finally {
+                setLoading(false);
+                inFlightRef.current = null;
+            }
+        })();
+
+        inFlightRef.current = request;
+        return request;
+    }, [fetchFn]);
 
     useEffect(() => {
-        fetchData(); // initial fetch
+        void fetchData();
 
         if (isPaused) return;
 
-        const intervalId = setInterval(fetchData, intervalMs);
+        const intervalId = setInterval(() => {
+            void fetchData();
+        }, intervalMs);
         return () => clearInterval(intervalId);
-    }, [intervalMs, isPaused]);
+    }, [fetchData, intervalMs, isPaused]);
 
     return { data, error, loading, refetch: fetchData };
 }

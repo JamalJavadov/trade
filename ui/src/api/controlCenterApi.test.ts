@@ -1,19 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AxiosError } from 'axios';
 
 const { getMock, postMock } = vi.hoisted(() => ({
     getMock: vi.fn(),
     postMock: vi.fn(),
-}));
-
-const { getSettingsMock, updateSettingsMock } = vi.hoisted(() => ({
-    getSettingsMock: vi.fn(),
-    updateSettingsMock: vi.fn(),
-}));
-
-const { getPermissionsMock, updatePermissionsMock } = vi.hoisted(() => ({
-    getPermissionsMock: vi.fn(),
-    updatePermissionsMock: vi.fn(),
 }));
 
 vi.mock('./axiosSetup', () => ({
@@ -23,162 +12,136 @@ vi.mock('./axiosSetup', () => ({
     },
 }));
 
-vi.mock('./client', () => ({
-    getSettings: getSettingsMock,
-    updateSettings: updateSettingsMock,
-}));
-
-vi.mock('./operatorApi', () => ({
-    getPermissions: getPermissionsMock,
-    updatePermissions: updatePermissionsMock,
-}));
-
 import {
+    createDefaultControlCenterState,
     getControlCenterState,
-    getControlCenterStateWithFallback,
-    mapSettingsPatchToLegacyPayload,
-    updateSettingsLegacy,
+    patchControlCenterState,
+    permissionItemsFromState,
 } from './controlCenterApi';
 
 describe('controlCenterApi', () => {
     beforeEach(() => {
         getMock.mockReset();
         postMock.mockReset();
-        getSettingsMock.mockReset();
-        updateSettingsMock.mockReset();
-        getPermissionsMock.mockReset();
-        updatePermissionsMock.mockReset();
     });
 
-    it('calls control center GET endpoint', async () => {
+    it('calls the control-center state endpoint and normalizes live execution/runtime fields', async () => {
         getMock.mockResolvedValue({
             data: {
-                permissions: [],
-                settings: {
+                config: {
+                    permissions: {
+                        'scan.run_once': true,
+                        'live.execution.run': false,
+                    },
                     scan: { intervalMinutes: 10, autoscanEnabled: true, safeMode: false },
-                    alerts: { enabled: false, volume: 75 },
-                    budget: { usdt: 5 },
-                    risk: { maxBudgetPct: 5, equityOverrideUsdt: null, maxEquityPct: 1 },
+                    risk: { budgetUsdt: 5, maxBudgetPct: 5, equityOverrideUsdt: null, maxEquityPctLocked: 1 },
+                    alerts: { enabled: false, volume: 0.5, durationSeconds: 5 },
+                    ai: {
+                        enabled: true,
+                        allowlist: ['model-primary', 'model-fallback'],
+                        live: {
+                            routing: {
+                                suggestion: { primaryModel: 'model-primary', fallbackModels: [] },
+                                explainability: { primaryModel: 'model-primary', fallbackModels: [] },
+                                vision: { primaryModel: 'model-primary', fallbackModels: [] },
+                                scanReview: { primaryModel: 'model-primary', fallbackModels: [] },
+                            },
+                        },
+                        demo: {
+                            routing: {
+                                suggestion: { primaryModel: 'model-primary', fallbackModels: [] },
+                                explainability: { primaryModel: 'model-primary', fallbackModels: [] },
+                                vision: { primaryModel: 'model-primary', fallbackModels: [] },
+                                scanReview: { primaryModel: 'model-primary', fallbackModels: [] },
+                            },
+                        },
+                    },
                     demoTrading: {
                         enabled: false,
                         intervalMinutes: 15,
                         maxOpenPositions: 1,
+                        startBalanceUsdt: 1000,
                         riskPct: 0.5,
+                        leverageDefault: 5,
                         feeBps: 4,
                         slippageBps: 2,
                         timeStopMinutes: 90,
-                        aiEnabled: true,
-                        aiEveryNTrades: 10,
-                        startBalanceUsdt: 1000,
-                        useMarkPrice: true,
-                        autostart: false,
                     },
-                    strategyLocks: { executionTf: '15m', biasTf: '1h', fractalPeriod: 5, minRr: 2, maxEquityPctCap: 1 },
+                    liveExecution: {
+                        readOnly: true,
+                    },
+                    strategyLocks: { executionTf: '15m', biasTf: '1h', fractalPeriod: 5, minRr: 2 },
                 },
-                aiRouting: {
-                    live: { allowlist: [], tasks: {} },
-                    demo: { allowlist: [], tasks: {} },
-                },
+                serverTime: '2026-03-05T12:00:00Z',
+                version: 9,
+                permissionCatalog: [],
             },
         });
 
-        await getControlCenterState();
+        const state = await getControlCenterState();
 
         expect(getMock).toHaveBeenCalledWith('/api/v1/control-center/state');
+        expect(state.config.ai.live.routing.scanReview.primaryModel).toBe('model-primary');
+        expect(state.config.ai.demo.routing.scanReview.primaryModel).toBe('model-primary');
+        expect(state.config.permissions['live.execution.enabled']).toBe(false);
+        expect(state.config.liveExecution.readOnly).toBe(true);
     });
 
-    it('falls back to legacy endpoints when control center endpoint is unavailable', async () => {
-        const unavailable = new AxiosError('Not Found', 'ERR_BAD_REQUEST');
-        unavailable.response = {
-            data: {},
-            status: 404,
-            statusText: 'Not Found',
-            headers: {},
-            config: { headers: {} } as any,
-        };
-        getMock.mockRejectedValue(unavailable);
+    it('posts state patches and normalizes the response', async () => {
+        postMock.mockResolvedValue({
+            data: {
+                config: {
+                    permissions: {},
+                    ai: {
+                        enabled: true,
+                        allowlist: ['model-primary'],
+                        live: { routing: {} },
+                        demo: { routing: {} },
+                    },
+                    liveExecution: {
+                        readOnly: true,
+                    },
+                },
+                serverTime: '2026-03-05T12:00:00Z',
+                version: 10,
+                permissionCatalog: [],
+            },
+        });
 
-        getPermissionsMock.mockResolvedValue([
+        const state = await patchControlCenterState({
+            patch: { demoTrading: { enabled: true } },
+            reason: 'demo-toggle-on',
+        });
+
+        expect(postMock).toHaveBeenCalledWith('/api/v1/control-center/state', {
+            patch: { demoTrading: { enabled: true } },
+            reason: 'demo-toggle-on',
+        });
+        expect(state.config.demoTrading.enabled).toBe(false);
+        expect(state.config.ai.live.routing.scanReview.primaryModel).toBe('openai/gpt-oss-120b:free');
+        expect(state.config.permissions['live.execution.enabled']).toBeUndefined();
+        expect(state.config.liveExecution.readOnly).toBe(true);
+    });
+
+    it('builds permission items from the catalog when present', () => {
+        const state = createDefaultControlCenterState();
+        state.permissionCatalog = [
             {
                 key: 'scan.run_once',
                 title: 'Run Scan Once',
-                description: 'desc',
+                description: 'Allows a manual scan.',
                 group: 'SCAN',
-                dangerLevel: 'LOW',
-                enabled: true,
-                updatedAt: '2026-03-01T00:00:00Z',
-                updatedBy: 'operator-1',
+                dangerLevel: 'MED',
             },
+        ];
+        state.config.permissions['scan.run_once'] = false;
+
+        expect(permissionItemsFromState(state)).toEqual([
+            expect.objectContaining({
+                key: 'scan.run_once',
+                title: 'Run Scan Once',
+                enabled: false,
+            }),
         ]);
-        getSettingsMock.mockResolvedValue({
-            safeMode: false,
-            schedulerEnabled: true,
-            scanIntervalMinutes: 20,
-            budgetUsdt: 10,
-            maxBudgetPct: 5,
-            equityOverrideUsdt: null,
-            maxEquityPct: 1,
-        });
-
-        const result = await getControlCenterStateWithFallback();
-
-        expect(result.sourceMode).toBe('legacy-fallback');
-        expect(result.capabilities.supportsAiRouting).toBe(false);
-        expect(result.state.permissions).toHaveLength(1);
-        expect(result.state.settings.scan.autoscanEnabled).toBe(true);
-        expect(result.state.settings.budget.usdt).toBe(10);
-    });
-
-    it('maps settings patch to legacy payload', () => {
-        const payload = mapSettingsPatchToLegacyPayload({
-            scan: {
-                autoscanEnabled: false,
-                safeMode: true,
-                intervalMinutes: 12,
-            },
-            budget: {
-                usdt: 200,
-            },
-            risk: {
-                maxBudgetPct: 1.5,
-                equityOverrideUsdt: null,
-                maxEquityPct: 0.7,
-            },
-            alerts: {
-                enabled: true,
-            },
-        });
-
-        expect(payload).toEqual({
-            schedulerEnabled: false,
-            safeMode: true,
-            scanIntervalMinutes: 12,
-            budgetUsdt: 200,
-            maxBudgetPct: 1.5,
-            equityOverrideUsdt: null,
-            maxEquityPct: 0.7,
-        });
-    });
-
-    it('updateSettingsLegacy reads current settings when patch has no legacy fields', async () => {
-        getSettingsMock.mockResolvedValue({
-            safeMode: false,
-            schedulerEnabled: true,
-            scanIntervalMinutes: 20,
-            budgetUsdt: 10,
-            maxBudgetPct: 5,
-            equityOverrideUsdt: null,
-            maxEquityPct: 1,
-        });
-
-        await updateSettingsLegacy({
-            alerts: {
-                enabled: true,
-                volume: 20,
-            },
-        });
-
-        expect(getSettingsMock).toHaveBeenCalledTimes(1);
-        expect(updateSettingsMock).not.toHaveBeenCalled();
     });
 });

@@ -105,7 +105,7 @@ class DemoTradingControllerWebMvcTest {
     void resetRequiresConfirm() throws Exception {
         mockMvc.perform(post("/api/v1/demo-trading/reset"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("BAD_REQUEST"));
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION"));
 
         when(lifecycleService.reset(true)).thenReturn(new DemoActionResponseDTO("reset", false));
 

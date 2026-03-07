@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import type { ScanPhaseDTO } from '../../types/scan';
+import type { ScanCandidateEventDTO, ScanPhaseDTO } from '../../types/scan';
 import { CheckCircle2, Circle, Loader2, XCircle } from 'lucide-react';
 
 const EXPECTED_PHASES = [
@@ -18,7 +18,15 @@ function formatPhaseName(phase: string) {
         .replace(/\b\w/g, c => c.toUpperCase());
 }
 
-export function PhaseTimeline({ phases, scanStatus }: { phases: ScanPhaseDTO[], scanStatus: string }) {
+export function PhaseTimeline({
+    phases,
+    scanStatus,
+    latestCandidateEvent
+}: {
+    phases: ScanPhaseDTO[],
+    scanStatus: string,
+    latestCandidateEvent?: ScanCandidateEventDTO | null
+}) {
 
     const getPhaseState = (expectedPhase: string) => {
         const found = phases.find(p => p.phase === expectedPhase);
@@ -102,6 +110,17 @@ export function PhaseTimeline({ phases, scanStatus }: { phases: ScanPhaseDTO[], 
                         </React.Fragment>
                     );
                 })}
+            </div>
+            <div className="mt-4 rounded border border-slate-700/60 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
+                {latestCandidateEvent ? (
+                    <span>
+                        Candidate verification: <span className="font-semibold text-slate-200">{latestCandidateEvent.symbol}</span>{' '}
+                        is in <span className="font-mono text-blue-300">{latestCandidateEvent.stage}</span>{' '}
+                        with status <span className="font-mono text-slate-200">{latestCandidateEvent.status}</span>.
+                    </span>
+                ) : (
+                    <span>No candidate-stage telemetry received yet.</span>
+                )}
             </div>
         </div>
     );

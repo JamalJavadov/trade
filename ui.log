@@ -3,59 +3,76 @@
 > vite
 
 
-  VITE v7.3.1  ready in 104 ms
+  VITE v7.3.1  ready in 100 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-11:10:40 PM [vite] http proxy error: /api/v1/recommendations/latest
+10:21:21 PM [vite] http proxy error: /api/v1/recommendations/latest
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/settings
+10:21:22 PM [vite] http proxy error: /api/v1/recommendations/latest
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/ai/models
+10:21:22 PM [vite] http proxy error: /api/v1/control-center/state
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/settings
+10:21:22 PM [vite] http proxy error: /api/v1/control-center/state
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/status
+10:21:22 PM [vite] http proxy error: /api/v1/scans/647a4e4b-5765-4692-a9fb-2780c0db6cd7/stream
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/recommendations/latest
+10:21:23 PM [vite] http proxy error: /api/v1/recommendations/latest
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/control-center/state
+10:21:23 PM [vite] http proxy error: /api/v1/control-center/state
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/ai/models
+10:21:23 PM [vite] http proxy error: /api/v1/control-center/state
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/settings
+10:21:23 PM [vite] http proxy error: /api/v1/scans/647a4e4b-5765-4692-a9fb-2780c0db6cd7/stream
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/settings
+10:21:24 PM [vite] http proxy error: /api/v1/recommendations/latest
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/recommendations/latest
+10:21:24 PM [vite] http proxy error: /api/v1/control-center/state
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/control-center/state
+10:21:24 PM [vite] http proxy error: /api/v1/control-center/state
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-11:10:40 PM [vite] http proxy error: /api/v1/status
+10:21:24 PM [vite] http proxy error: /api/v1/scans/647a4e4b-5765-4692-a9fb-2780c0db6cd7/stream
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
+10:21:26 PM [vite] http proxy error: /api/v1/control-center/state
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+10:21:26 PM [vite] http proxy error: /api/v1/recommendations/latest
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+10:21:26 PM [vite] http proxy error: /api/v1/control-center/state
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+10:21:26 PM [vite] http proxy error: /api/v1/scans/647a4e4b-5765-4692-a9fb-2780c0db6cd7/stream
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+10:27:34 PM [vite] (client) hmr update /src/hooks/usePermissions.tsx, /src/index.css

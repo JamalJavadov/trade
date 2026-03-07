@@ -1,3 +1,4 @@
+import React from 'react';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -23,6 +24,7 @@ const demoApiMock = vi.hoisted(() => ({
 }));
 const permissionsHookMock = vi.hoisted(() => ({
     canMock: vi.fn(),
+    patchConfigMock: vi.fn(),
 }));
 
 vi.mock('../api/demoApi', () => ({
@@ -33,6 +35,17 @@ vi.mock('../hooks/usePermissions', () => ({
     usePermissions: () => ({
         can: permissionsHookMock.canMock,
     }),
+    useControlCenter: () => ({
+        state: {
+            config: {
+                demoTrading: {
+                    enabled: false,
+                    startBalanceUsdt: 1000,
+                },
+            },
+        },
+        patchConfig: permissionsHookMock.patchConfigMock,
+    }),
 }));
 
 vi.mock('../components/demo/DemoAccountCard', () => ({
@@ -41,6 +54,18 @@ vi.mock('../components/demo/DemoAccountCard', () => ({
 
 vi.mock('../components/demo/DemoAnalyticsCard', () => ({
     DemoAnalyticsCard: () => <div data-testid="demo-analytics-card">Demo Analytics Card</div>,
+}));
+
+vi.mock('recharts', () => ({
+    ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    LineChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    BarChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    CartesianGrid: () => null,
+    Line: () => null,
+    Bar: () => null,
+    Tooltip: () => null,
+    XAxis: () => null,
+    YAxis: () => null,
 }));
 
 function createStatus(enabled = true) {
@@ -264,6 +289,7 @@ describe('DemoTradingPage', () => {
         vi.clearAllMocks();
         setupApiDefaults();
         permissionsHookMock.canMock.mockImplementation(() => true);
+        permissionsHookMock.patchConfigMock.mockResolvedValue(undefined);
     });
 
     afterEach(() => {
@@ -271,21 +297,15 @@ describe('DemoTradingPage', () => {
         vi.useRealTimers();
     });
 
-    it('requires typing RESET before allowing reset confirmation', async () => {
-        const user = userEvent.setup();
+    it('shows the paused state when demo runtime is disabled', async () => {
+        demoApiMock.getStatus.mockResolvedValue(createStatus(false));
         renderDemo();
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'Reset' })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Demo OFF' })).toBeInTheDocument();
         });
 
-        await user.click(screen.getByRole('button', { name: 'Reset' }));
-
-        const confirmButton = screen.getByRole('button', { name: 'Confirm Reset' });
-        expect(confirmButton).toBeDisabled();
-
-        await user.type(screen.getByPlaceholderText('Type RESET'), 'RESET');
-        expect(confirmButton).toBeEnabled();
+        expect(screen.getByText('Demo runtime is paused')).toBeInTheDocument();
     });
 
     it('opens accept confirmation modal and disables confirm while accept is in flight', async () => {
@@ -358,30 +378,26 @@ describe('DemoTradingPage', () => {
         const user = userEvent.setup();
         permissionsHookMock.canMock.mockImplementation((permissionKey: string) => ![
             'demo.enable_disable',
-            'demo.reset',
-            'ai.suggestions.accept_reject',
+            'demo.ai.accept_reject',
         ].includes(permissionKey));
         demoApiMock.getLatestSuggestions.mockResolvedValue(createSuggestions(true));
 
         renderDemo();
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'Enable' })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Demo ON' })).toBeInTheDocument();
         });
 
-        const enableButton = screen.getByRole('button', { name: 'Enable' });
-        const resetButton = screen.getByRole('button', { name: 'Reset' });
+        const enableButton = screen.getByRole('button', { name: 'Demo ON' });
         const acceptButton = screen.getByRole('button', { name: 'Accept' });
         const rejectButton = screen.getByRole('button', { name: 'Reject' });
 
         expect(enableButton).toBeDisabled();
-        expect(enableButton).toHaveAttribute('title', 'Disabled by operator permission: demo.enable_disable');
-        expect(resetButton).toBeDisabled();
-        expect(resetButton).toHaveAttribute('title', 'Disabled by operator permission: demo.reset');
+        expect(enableButton).toHaveAttribute('title', 'Disabled by permission: demo.enable_disable');
         expect(acceptButton).toBeDisabled();
-        expect(acceptButton).toHaveAttribute('title', 'Disabled by operator permission: ai.suggestions.accept_reject');
+        expect(acceptButton).toHaveAttribute('title', 'Disabled by operator permission: demo.ai.accept_reject');
         expect(rejectButton).toBeDisabled();
-        expect(rejectButton).toHaveAttribute('title', 'Disabled by operator permission: ai.suggestions.accept_reject');
+        expect(rejectButton).toHaveAttribute('title', 'Disabled by operator permission: demo.ai.accept_reject');
 
         await user.click(acceptButton);
         expect(screen.queryByText('Accept Demo AI Suggestions')).not.toBeInTheDocument();

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.tradebot.ScanChartsAggregationTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-03-01T11:52:35" hostname="CamaltekiMacBook-Pro.local" time="0.005">
-  <properties/>
-  <testcase name="emptyRowsProduceEmptyHistograms()" classname="com.tradebot.ScanChartsAggregationTest" time="0.0"/>
-  <testcase name="histogramBinsAreCorrectlyDistributed()" classname="com.tradebot.ScanChartsAggregationTest" time="0.005"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

@@ -9,6 +9,7 @@ import {
     Volume2,
 } from 'lucide-react';
 import { getSettings, updateSettings, type SettingsDTO } from '../api/client';
+import { buildApiUrl } from '../api/axiosSetup';
 import { resumeAlertAudioContext, playAlertSound, stopAlertSound } from '../alerts/alertAudio';
 import { useAlertsStore } from '../store/alertsStore';
 import { parseApiError } from '../utils/apiError';
@@ -36,8 +37,6 @@ export const OperatorPanel: React.FC = () => {
     const [alertHelper, setAlertHelper] = useState<string | null>(null);
     const canAutoscanToggle = can('scan.autoscan.toggle');
     const autoscanToggleTooltip = disabledByPermissionTooltip('scan.autoscan.toggle', canAutoscanToggle);
-
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
     const armed = useAlertsStore((state) => state.armed);
     const volume = useAlertsStore((state) => state.volume);
@@ -455,7 +454,7 @@ export const OperatorPanel: React.FC = () => {
                     </p>
 
                     <a
-                        href={`${API_BASE}/api/v1/export/journal`}
+                        href={buildApiUrl('/api/v1/export/journal')}
                         download
                         className="flex items-center justify-between p-4 bg-gray-800 hover:bg-gray-700 rounded border border-gray-600 transition-colors group cursor-pointer"
                     >
@@ -467,7 +466,7 @@ export const OperatorPanel: React.FC = () => {
                     </a>
 
                     <a
-                        href={`${API_BASE}/api/v1/export/analytics`}
+                        href={buildApiUrl('/api/v1/export/analytics')}
                         download
                         className="flex items-center justify-between p-4 bg-gray-800 hover:bg-gray-700 rounded border border-gray-600 transition-colors group cursor-pointer"
                     >

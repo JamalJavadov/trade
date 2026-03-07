@@ -4,6 +4,7 @@ public enum PermissionGroup {
     SCAN,
     SETTINGS,
     AI,
+    LIVE,
     DEMO,
     JOURNAL,
     EXPORTS,

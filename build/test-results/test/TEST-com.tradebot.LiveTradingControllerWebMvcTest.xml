@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.LiveTradingControllerWebMvcTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-03-07T17:51:31" hostname="CamaltekiMacBook-Pro.local" time="0.182">
+  <properties/>
+  <testcase name="listExecutionsReturnsMostRecentAttempts()" classname="com.tradebot.LiveTradingControllerWebMvcTest" time="0.128"/>
+  <testcase name="getExecutionReturnsDetail()" classname="com.tradebot.LiveTradingControllerWebMvcTest" time="0.006"/>
+  <testcase name="healthReturnsStructuredRuntimeAndBinanceReadiness()" classname="com.tradebot.LiveTradingControllerWebMvcTest" time="0.046"/>
+  <system-out><![CDATA[21:51:30.220 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.tradebot.LiveTradingControllerWebMvcTest]: LiveTradingControllerWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+21:51:30.276 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.LiveTradingControllerWebMvcTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.4)
+
+2026-03-07T21:51:30.429+04:00  INFO 13657 --- [    Test worker] c.t.LiveTradingControllerWebMvcTest      : Starting LiveTradingControllerWebMvcTest using Java 21.0.9 with PID 13657 (started by camal in /Users/camal/Documents/trade/trade bot)
+2026-03-07T21:51:30.429+04:00  INFO 13657 --- [    Test worker] c.t.LiveTradingControllerWebMvcTest      : No active profile set, falling back to 1 default profile: "default"
+2026-03-07T21:51:31.018+04:00  INFO 13657 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-07T21:51:31.019+04:00  INFO 13657 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-07T21:51:31.019+04:00  INFO 13657 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-07T21:51:31.063+04:00  INFO 13657 --- [    Test worker] c.t.LiveTradingControllerWebMvcTest      : Started LiveTradingControllerWebMvcTest in 0.759 seconds (process running for 1.773)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

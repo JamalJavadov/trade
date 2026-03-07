@@ -2,6 +2,9 @@ package com.tradebot.exception;
 
 import com.tradebot.operator.ForbiddenPermissionException;
 import com.tradebot.security.ForbiddenNotLocalException;
+import com.tradebot.service.BinanceErrorClassifier;
+import com.tradebot.service.BinanceErrorClassifier.BinanceErrorDetails;
+import com.tradebot.service.LiveTradingBlockerCodes;
 import com.tradebot.trace.TraceIdContext;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -87,8 +90,8 @@ public class GlobalExceptionHandler {
         details.put("permissionKey", ex.getPermissionKey());
         details.put("title", ex.getTitle());
         details.put("howToFix", "Enable it in Permissions panel");
-        return buildError(request, HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN_PERMISSION,
-                "Action blocked by operator permission", details, traceId);
+        return buildError(request, HttpStatus.FORBIDDEN, ErrorCode.RUNTIME_PERMISSION_DISABLED,
+                "Action blocked by runtime permission", details, traceId);
     }
 
     @ExceptionHandler(ForbiddenNotLocalException.class)
@@ -101,8 +104,19 @@ public class GlobalExceptionHandler {
         details.put("remoteAddress", ex.getRemoteAddress());
         details.put("origin", ex.getOrigin());
         details.put("howToFix", "Run mutation requests from localhost or localhost-origin UI.");
-        return buildError(request, HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN_NOT_LOCAL,
+        return buildError(request, HttpStatus.FORBIDDEN, ErrorCode.LOCAL_MUTATION_BLOCKED,
                 "Mutation blocked: endpoint is local-only", details, traceId);
+    }
+
+    @ExceptionHandler(BotReadOnlyException.class)
+    public ResponseEntity<ApiErrorResponse> handleBotReadOnly(BotReadOnlyException ex, HttpServletRequest request) {
+        String traceId = traceId(request);
+        return buildError(request,
+                HttpStatus.CONFLICT,
+                ErrorCode.BOT_READ_ONLY,
+                ex.getMessage(),
+                detailsWithRootMessage(ex.getMessage()),
+                traceId);
     }
 
     @ExceptionHandler(NoSuchElementException.class)
@@ -199,18 +213,25 @@ public class GlobalExceptionHandler {
         details.put("rootMessage", ex.getMessage());
 
         if (host != null && host.contains("binance.com")) {
-            if (status == 429) {
-                mappedCode = ErrorCode.BINANCE_RATE_LIMIT;
-                message = "Binance Rate Limit Exceeded";
-                if (ex.getHeaders().containsKey("Retry-After")) {
-                    details.put("retryAfter", ex.getHeaders().getFirst("Retry-After"));
-                }
-            } else if (status == 401 || status == 403) {
-                mappedCode = ErrorCode.BINANCE_AUTH;
-                message = "Binance Authentication Failed (Invalid or expired keys)";
-            } else {
-                mappedCode = ErrorCode.BINANCE_NETWORK;
-                message = "Binance API request failed.";
+            BinanceErrorDetails binanceDetails = BinanceErrorClassifier.from(ex);
+            ErrorCode classified = switch (BinanceErrorClassifier.classify(binanceDetails)) {
+                case LiveTradingBlockerCodes.BINANCE_RATE_LIMIT -> ErrorCode.BINANCE_RATE_LIMIT;
+                case LiveTradingBlockerCodes.BINANCE_TIMESTAMP_INVALID -> ErrorCode.BINANCE_TIMESTAMP_INVALID;
+                case LiveTradingBlockerCodes.BINANCE_SIGNING_FAILED -> ErrorCode.BINANCE_SIGNING_FAILED;
+                case LiveTradingBlockerCodes.BINANCE_ENDPOINT_MISCONFIGURED -> ErrorCode.BINANCE_ENDPOINT_MISCONFIGURED;
+                case LiveTradingBlockerCodes.BINANCE_IP_NOT_ALLOWED -> ErrorCode.BINANCE_IP_NOT_ALLOWED;
+                case LiveTradingBlockerCodes.BINANCE_FUTURES_PERMISSION_MISSING ->
+                    ErrorCode.BINANCE_FUTURES_PERMISSION_MISSING;
+                case LiveTradingBlockerCodes.BINANCE_AUTH_INVALID -> ErrorCode.BINANCE_AUTH_INVALID;
+                default -> ErrorCode.BINANCE_NETWORK;
+            };
+            mappedCode = classified;
+            message = BinanceErrorClassifier.defaultMessage(BinanceErrorClassifier.classify(binanceDetails), binanceDetails);
+            details.put("binanceCode", binanceDetails.binanceCode());
+            details.put("binanceMessage", binanceDetails.binanceMessage());
+            details.put("requestIpHint", binanceDetails.requestIpHint());
+            if (ex.getHeaders().containsKey("Retry-After")) {
+                details.put("retryAfter", ex.getHeaders().getFirst("Retry-After"));
             }
         } else if (host != null && host.contains("openrouter.ai")) {
             if (status == 401 || status == 403) {

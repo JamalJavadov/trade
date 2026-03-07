@@ -212,6 +212,7 @@ export function ScanPage() {
                     <PhaseTimeline
                         phases={live.phases}
                         scanStatus={status}
+                        latestCandidateEvent={live.latestCandidateEvent}
                     />
                 </div>
                 <div>
@@ -220,6 +221,9 @@ export function ScanPage() {
                         total={live.progress?.total || 300}
                         validCount={live.progress?.validCount || 0}
                         noTradeCount={live.progress?.noTradeCount || 0}
+                        eligibleCount={live.progress?.eligibleCount || 0}
+                        dataErrorCount={live.progress?.dataErrorCount || 0}
+                        latestCandidateEvent={live.latestCandidateEvent}
                     />
                 </div>
             </div>

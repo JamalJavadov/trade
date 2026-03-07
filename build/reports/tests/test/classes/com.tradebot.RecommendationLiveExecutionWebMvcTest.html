@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="x-ua-compatible" content="IE=edge"/>
+<title>Test results - RecommendationLiveExecutionWebMvcTest</title>
+<link href="../css/base-style.css" rel="stylesheet" type="text/css"/>
+<link href="../css/style.css" rel="stylesheet" type="text/css"/>
+<script src="../js/report.js" type="text/javascript"></script>
+</head>
+<body>
+<div id="content">
+<h1>RecommendationLiveExecutionWebMvcTest</h1>
+<div class="breadcrumbs">
+<a href="../index.html">all</a> &gt; 
+<a href="../packages/com.tradebot.html">com.tradebot</a> &gt; RecommendationLiveExecutionWebMvcTest</div>
+<div id="summary">
+<table>
+<tr>
+<td>
+<div class="summaryGroup">
+<table>
+<tr>
+<td>
+<div class="infoBox" id="tests">
+<div class="counter">5</div>
+<p>tests</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="failures">
+<div class="counter">0</div>
+<p>failures</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="ignored">
+<div class="counter">0</div>
+<p>ignored</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="duration">
+<div class="counter">0.053s</div>
+<p>duration</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</td>
+<td>
+<div class="infoBox success" id="successRate">
+<div class="percent">100%</div>
+<p>successful</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div id="tabs">
+<ul class="tabLinks">
+<li>
+<a href="#tab0">Tests</a>
+</li>
+<li>
+<a href="#tab1">Standard output</a>
+</li>
+</ul>
+<div id="tab0" class="tab">
+<h2>Tests</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Duration</th>
+<th>Result</th>
+</tr>
+</thead>
+<tr>
+<td class="success">executeLiveRejectsMissingClientRequestId()</td>
+<td class="success">0.028s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">executeLiveRejectsNonLocalMutation()</td>
+<td class="success">0.003s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">executeLiveRequiresOperatorPermission()</td>
+<td class="success">0.009s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">executeLiveReturnsExecutionStateAfterExplicitConfirmation()</td>
+<td class="success">0.006s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">executionPreflightReturnsStructuredSnapshot()</td>
+<td class="success">0.007s</td>
+<td class="success">passed</td>
+</tr>
+</table>
+</div>
+<div id="tab1" class="tab">
+<h2>Standard output</h2>
+<span class="code">
+<pre>2026-03-07T21:51:31.450+04:00  INFO 13657 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.RecommendationLiveExecutionWebMvcTest]: RecommendationLiveExecutionWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-07T21:51:31.453+04:00  INFO 13657 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.RecommendationLiveExecutionWebMvcTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.4)
+
+2026-03-07T21:51:31.467+04:00  INFO 13657 --- [    Test worker] .t.RecommendationLiveExecutionWebMvcTest : Starting RecommendationLiveExecutionWebMvcTest using Java 21.0.9 with PID 13657 (started by camal in /Users/camal/Documents/trade/trade bot)
+2026-03-07T21:51:31.468+04:00  INFO 13657 --- [    Test worker] .t.RecommendationLiveExecutionWebMvcTest : No active profile set, falling back to 1 default profile: &quot;default&quot;
+2026-03-07T21:51:31.651+04:00  INFO 13657 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-07T21:51:31.651+04:00  INFO 13657 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-07T21:51:31.652+04:00  INFO 13657 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
+2026-03-07T21:51:31.655+04:00  INFO 13657 --- [    Test worker] .t.RecommendationLiveExecutionWebMvcTest : Started RecommendationLiveExecutionWebMvcTest in 0.2 seconds (process running for 2.364)
+2026-03-07T21:51:31.659+04:00  WARN 13657 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 4042a026-4b19-4718-8998-e34673f35f12] Forbidden permission at /api/v1/recommendations/00000000-0000-0000-0000-000000000102/execute-live: permission=live.execution.enabled
+2026-03-07T21:51:31.701+04:00  WARN 13657 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: b2c481cf-2173-4877-984b-38d17b085379] Validation error at /api/v1/recommendations/00000000-0000-0000-0000-000000000106/execute-live: {clientRequestId=clientRequestId is required}
+2026-03-07T21:51:31.711+04:00  WARN 13657 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: a9e09395-b579-41ea-b42b-46a4abe107db] Forbidden non-local mutation at /api/v1/recommendations/00000000-0000-0000-0000-000000000103/execute-live remote=10.0.0.12 origin=https://remote-host
+</pre>
+</span>
+</div>
+</div>
+<div id="footer">
+<p>
+<div>
+<label class="hidden" id="label-for-line-wrapping-toggle" for="line-wrapping-toggle">Wrap lines
+<input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
+</label>
+</div>Generated by 
+<a href="http://www.gradle.org">Gradle 8.7</a> at Mar 7, 2026, 9:51:31 PM</p>
+</div>
+</div>
+</body>
+</html>

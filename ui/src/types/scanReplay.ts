@@ -1,4 +1,4 @@
-import type { ScanSummaryDTO, ScanPhaseDTO, SymbolEvaluationRowDTO, ScanChartsDTO } from './scan';
+import type { ScanSummaryDTO, ScanPhaseDTO, SymbolEvaluationRowDTO, ScanChartsDTO, ScanCandidateEventDTO } from './scan';
 
 export interface ExplanationDTO {
     headline: string;
@@ -22,5 +22,6 @@ export interface ScanReplayDTO {
     phases: ScanPhaseDTO[];
     bestCandidateEvents: BestCandidateEventDTO[];
     evaluations: SymbolEvaluationRowDTO[];
+    candidateEvents: ScanCandidateEventDTO[];
     charts: ScanChartsDTO;
 }

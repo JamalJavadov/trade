@@ -6,9 +6,16 @@ import { useNavigate } from 'react-router-dom';
 interface RecommendationCardProps {
     recommendation: RecommendationDTO | null;
     loading: boolean;
+    liveExecutionStatus?: string | null;
+    latestExecutionState?: string | null;
 }
 
-export const RecommendationCard: React.FC<RecommendationCardProps> = ({ recommendation, loading }) => {
+export const RecommendationCard: React.FC<RecommendationCardProps> = ({
+    recommendation,
+    loading,
+    liveExecutionStatus,
+    latestExecutionState,
+}) => {
     const navigate = useNavigate();
 
     if (loading && !recommendation) {
@@ -43,6 +50,16 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({ recommen
                             {isLong ? <ArrowUpRight size={14} className="mr-1" /> : <ArrowDownRight size={14} className="mr-1" />}
                             {recommendation.side}
                         </span>
+                        {liveExecutionStatus && (
+                            <span className="rounded-full border border-amber-700/40 bg-amber-900/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-amber-200">
+                                {liveExecutionStatus}
+                            </span>
+                        )}
+                        {latestExecutionState && (
+                            <span className="rounded-full border border-sky-700/40 bg-sky-900/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-sky-200">
+                                Exec {latestExecutionState}
+                            </span>
+                        )}
                     </div>
                     <p className="text-gray-400 text-sm">{recommendation.rationaleText}</p>
                 </div>
@@ -75,7 +92,7 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({ recommen
                     onClick={() => navigate(`/recommendation/${recommendation.id}`)}
                     className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-3 rounded transition-colors"
                 >
-                    View Manual Order Details
+                    Review Setup & Live Execution
                 </button>
             </div>
 

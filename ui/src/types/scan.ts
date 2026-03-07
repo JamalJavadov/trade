@@ -20,6 +20,10 @@ export interface ScanSummaryDTO {
     evaluatedCount: number;
     validCount: number;
     noTradeCount: number;
+    eligibleCount: number;
+    blockedCount: number;
+    conflictCount: number;
+    dataIntegrityFailureCount: number;
     notes: string | null;
 }
 
@@ -40,12 +44,38 @@ export interface SymbolEvaluationRowDTO {
     tp1: number | string | null;
     skipReasonCode: string | null;
     skipReasonText: string | null;
-    createdAt: string;
+    traceId?: string | null;
+    recommendationEligible?: boolean | null;
+    finalIntegrityScore?: number | null;
+    conflictState?: string | null;
+    aiAgreementState?: string | null;
+    aiReviewStatus?: string | null;
+    rejectionReasons?: string[] | null;
+    latestCandidateStage?: string | null;
+    latestCandidateStageStatus?: string | null;
+    createdAt: string | null;
 }
 
 export interface SymbolEvaluationDetailDTO extends SymbolEvaluationRowDTO {
     metrics: Record<string, unknown> | null;
     diagnostics: Record<string, unknown> | null;
+    snapshot?: Record<string, unknown> | null;
+    integrity?: Record<string, unknown> | null;
+    deterministicEvidence?: Record<string, unknown> | null;
+    validation?: Record<string, unknown> | null;
+    confirmation?: Record<string, unknown> | null;
+    aiReview?: Record<string, unknown> | null;
+    finalGate?: Record<string, unknown> | null;
+    candidateEvents?: ScanCandidateEventDTO[] | null;
+}
+
+export interface ScanCandidateEventDTO {
+    symbol: string;
+    stage: string;
+    seq: number;
+    status: string;
+    ts: string;
+    payload: Record<string, unknown> | null;
 }
 
 export interface Page<T> {

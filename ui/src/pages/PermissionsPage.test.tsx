@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PermissionsPage } from './PermissionsPage';
@@ -11,11 +11,13 @@ const {
     useControlCenterMock,
     getAutoScanStateMock,
     runScanOnceMock,
+    patchConfigMock,
 } = vi.hoisted(() => ({
     usePermissionsMock: vi.fn(),
     useControlCenterMock: vi.fn(),
     getAutoScanStateMock: vi.fn(),
     runScanOnceMock: vi.fn(),
+    patchConfigMock: vi.fn(),
 }));
 
 vi.mock('../hooks/usePermissions', () => ({
@@ -36,6 +38,7 @@ const controlCenterState: ControlCenterStateResponse = {
         permissions: {
             'settings.update': true,
             'scan.run_once': true,
+            'live.execution.enabled': false,
         },
         scan: {
             autoscanEnabled: true,
@@ -61,6 +64,7 @@ const controlCenterState: ControlCenterStateResponse = {
                     suggestion: { primaryModel: 'model-primary', fallbackModels: ['model-fallback'] },
                     explainability: { primaryModel: 'model-primary', fallbackModels: [] },
                     vision: { primaryModel: 'model-primary', fallbackModels: [] },
+                    scanReview: { primaryModel: 'model-primary', fallbackModels: [] },
                 },
             },
             demo: {
@@ -68,6 +72,7 @@ const controlCenterState: ControlCenterStateResponse = {
                     suggestion: { primaryModel: 'model-primary', fallbackModels: [] },
                     explainability: { primaryModel: 'model-primary', fallbackModels: [] },
                     vision: { primaryModel: 'model-primary', fallbackModels: [] },
+                    scanReview: { primaryModel: 'model-primary', fallbackModels: [] },
                 },
             },
         },
@@ -81,6 +86,9 @@ const controlCenterState: ControlCenterStateResponse = {
             feeBps: 4,
             slippageBps: 2,
             timeStopMinutes: 90,
+        },
+        liveExecution: {
+            readOnly: true,
         },
         strategyLocks: {
             executionTf: '15m',
@@ -105,6 +113,13 @@ const controlCenterState: ControlCenterStateResponse = {
             description: 'Allows on-demand scan runs.',
             group: 'SCAN',
             dangerLevel: 'MED',
+        },
+        {
+            key: 'live.execution.enabled',
+            title: 'Enable Live Execution',
+            description: 'Allows manual Binance Futures order execution.',
+            group: 'LIVE',
+            dangerLevel: 'HIGH',
         },
     ],
 };
@@ -147,6 +162,7 @@ describe('PermissionsPage autoscan runtime', () => {
         vi.clearAllMocks();
         getAutoScanStateMock.mockResolvedValue(runtimeState);
         runScanOnceMock.mockResolvedValue({ scanRunId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', status: 'STARTED' });
+        patchConfigMock.mockResolvedValue(controlCenterState);
 
         usePermissionsMock.mockReturnValue({
             permissions: [
@@ -167,6 +183,16 @@ describe('PermissionsPage autoscan runtime', () => {
                     group: 'SCAN',
                     dangerLevel: 'MED',
                     enabled: true,
+                    updatedAt: '2026-03-05T12:00:00Z',
+                    updatedBy: 'control-center',
+                },
+                {
+                    key: 'live.execution.enabled',
+                    title: 'Enable Live Execution',
+                    description: 'Allows manual Binance Futures order execution.',
+                    group: 'LIVE',
+                    dangerLevel: 'HIGH',
+                    enabled: false,
                     updatedAt: '2026-03-05T12:00:00Z',
                     updatedBy: 'control-center',
                 },
@@ -192,7 +218,7 @@ describe('PermissionsPage autoscan runtime', () => {
             updatePermission: vi.fn(),
             patchSettings: vi.fn(),
             patchAiRouting: vi.fn(),
-            patchConfig: vi.fn().mockResolvedValue(controlCenterState),
+            patchConfig: patchConfigMock,
         });
 
         useControlCenterMock.mockReturnValue({
@@ -211,7 +237,7 @@ describe('PermissionsPage autoscan runtime', () => {
             updatePermission: vi.fn(),
             patchSettings: vi.fn(),
             patchAiRouting: vi.fn(),
-            patchConfig: vi.fn().mockResolvedValue(controlCenterState),
+            patchConfig: patchConfigMock,
         });
     });
 
@@ -307,6 +333,38 @@ describe('PermissionsPage autoscan runtime', () => {
 
         await waitFor(() => {
             expect(screen.getByText(/INTERNAL: state unavailable/)).toBeInTheDocument();
+        });
+    });
+
+    it('edits the single live execution capability and read-only gate from the runtime section', async () => {
+        const user = userEvent.setup();
+        render(<PermissionsPage />);
+
+        const runtimeHeader = await screen.findByText('Live Execution Runtime');
+        const runtimeSection = runtimeHeader.closest('section');
+
+        const capabilityToggle = screen.getByRole('checkbox', { name: /Enable manual live execution/i });
+        const readOnlyToggle = screen.getByRole('checkbox', { name: /READ-ONLY mode/i });
+        expect(capabilityToggle).not.toBeChecked();
+        expect(readOnlyToggle).toBeChecked();
+
+        await user.click(capabilityToggle);
+        await user.click(readOnlyToggle);
+
+        if (!runtimeSection) {
+            throw new Error('Live execution runtime section not found');
+        }
+        await user.click(within(runtimeSection).getByRole('button', { name: 'Save live execution' }));
+
+        await waitFor(() => {
+            expect(patchConfigMock).toHaveBeenCalledWith({
+                permissions: {
+                    'live.execution.enabled': true,
+                },
+                liveExecution: {
+                    readOnly: false,
+                },
+            }, 'live-execution-runtime-save');
         });
     });
 });

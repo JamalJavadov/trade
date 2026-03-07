@@ -16,10 +16,12 @@ public class AiSuggestionBatchDTO {
 
     @Data
     public static class SuggestionItemDTO {
+        private String id;
         private String key;
         private String proposedValue;
         private String reason;
         private String impactHypothesis;
+        private String riskOfChange;
         private String status;
     }
 }

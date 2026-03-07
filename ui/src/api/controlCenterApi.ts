@@ -19,6 +19,7 @@ export interface ControlCenterModeRouting {
         suggestion: ControlCenterTaskRouting;
         explainability: ControlCenterTaskRouting;
         vision: ControlCenterTaskRouting;
+        scanReview: ControlCenterTaskRouting;
     };
 }
 
@@ -56,6 +57,9 @@ export interface ControlCenterConfig {
         feeBps: number;
         slippageBps: number;
         timeStopMinutes: number;
+    };
+    liveExecution: {
+        readOnly: boolean;
     };
     strategyLocks: {
         executionTf: string;
@@ -108,6 +112,7 @@ const DEFAULT_CONFIG: ControlCenterConfig = {
                 suggestion: { ...DEFAULT_ROUTING },
                 explainability: { ...DEFAULT_ROUTING },
                 vision: { ...DEFAULT_ROUTING },
+                scanReview: { ...DEFAULT_ROUTING },
             },
         },
         demo: {
@@ -115,6 +120,7 @@ const DEFAULT_CONFIG: ControlCenterConfig = {
                 suggestion: { ...DEFAULT_ROUTING },
                 explainability: { ...DEFAULT_ROUTING },
                 vision: { ...DEFAULT_ROUTING },
+                scanReview: { ...DEFAULT_ROUTING },
             },
         },
     },
@@ -129,6 +135,9 @@ const DEFAULT_CONFIG: ControlCenterConfig = {
         slippageBps: 2,
         timeStopMinutes: 90,
     },
+    liveExecution: {
+        readOnly: false,
+    },
     strategyLocks: {
         executionTf: '15m',
         biasTf: '1h',
@@ -136,6 +145,46 @@ const DEFAULT_CONFIG: ControlCenterConfig = {
         minRr: 2,
     },
 };
+
+const PERMISSION_ALIASES: Record<string, string> = {
+    'scan.autoscan.enable': 'scan.autoscan.toggle',
+    'ai.models.manage': 'ai.models.update',
+    'live.execution.view': 'live.execution.enabled',
+    'live.execution.run': 'live.execution.enabled',
+    'live.execution.reconcile': 'live.execution.enabled',
+};
+
+function normalizePermissions(value: unknown): Record<string, boolean> {
+    const raw = isRecord(value) ? value : {};
+    const permissions: Record<string, boolean> = {};
+
+    Object.entries(raw).forEach(([key, flag]) => {
+        if (
+            key === 'live.execution.view'
+            || key === 'live.execution.run'
+            || key === 'live.execution.reconcile'
+        ) {
+            return;
+        }
+        permissions[PERMISSION_ALIASES[key] ?? key] = toBool(flag, true);
+    });
+
+    const legacyRun = typeof raw['live.execution.run'] === 'boolean' ? raw['live.execution.run'] : undefined;
+    const canonicalLive = typeof raw['live.execution.enabled'] === 'boolean'
+        ? raw['live.execution.enabled']
+        : undefined;
+    const legacyView = typeof raw['live.execution.view'] === 'boolean' ? raw['live.execution.view'] : undefined;
+    const legacyReconcile = typeof raw['live.execution.reconcile'] === 'boolean'
+        ? raw['live.execution.reconcile']
+        : undefined;
+    const liveExecutionEnabled = legacyRun ?? canonicalLive ?? legacyView ?? legacyReconcile;
+
+    if (typeof liveExecutionEnabled === 'boolean') {
+        permissions['live.execution.enabled'] = liveExecutionEnabled;
+    }
+
+    return permissions;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
@@ -187,25 +236,21 @@ function normalizeModeRouting(value: unknown): ControlCenterModeRouting {
             suggestion: normalizeRouting(routing.suggestion),
             explainability: normalizeRouting(routing.explainability),
             vision: normalizeRouting(routing.vision),
+            scanReview: normalizeRouting(routing.scanReview),
         },
     };
 }
 
-function normalizeConfig(value: unknown): ControlCenterConfig {
+export function normalizeControlCenterConfig(value: unknown): ControlCenterConfig {
     const config = isRecord(value) ? value : {};
     const scan = isRecord(config.scan) ? config.scan : {};
     const risk = isRecord(config.risk) ? config.risk : {};
     const alerts = isRecord(config.alerts) ? config.alerts : {};
     const ai = isRecord(config.ai) ? config.ai : {};
     const demoTrading = isRecord(config.demoTrading) ? config.demoTrading : {};
+    const liveExecution = isRecord(config.liveExecution) ? config.liveExecution : {};
     const strategyLocks = isRecord(config.strategyLocks) ? config.strategyLocks : {};
-
-    const permissions: Record<string, boolean> = {};
-    if (isRecord(config.permissions)) {
-        Object.entries(config.permissions).forEach(([key, flag]) => {
-            permissions[key] = toBool(flag, true);
-        });
-    }
+    const permissions = normalizePermissions(config.permissions);
 
     return {
         permissions,
@@ -242,6 +287,9 @@ function normalizeConfig(value: unknown): ControlCenterConfig {
             slippageBps: toNumber(demoTrading.slippageBps, DEFAULT_CONFIG.demoTrading.slippageBps),
             timeStopMinutes: toNumber(demoTrading.timeStopMinutes, DEFAULT_CONFIG.demoTrading.timeStopMinutes),
         },
+        liveExecution: {
+            readOnly: toBool(liveExecution.readOnly, DEFAULT_CONFIG.liveExecution.readOnly),
+        },
         strategyLocks: {
             executionTf: toStringValue(strategyLocks.executionTf, DEFAULT_CONFIG.strategyLocks.executionTf),
             biasTf: toStringValue(strategyLocks.biasTf, DEFAULT_CONFIG.strategyLocks.biasTf),
@@ -269,7 +317,7 @@ function normalizePermissionCatalog(value: unknown): PermissionCatalogItem[] {
 function normalizeState(value: unknown): ControlCenterStateResponse {
     const raw = isRecord(value) ? value : {};
     return {
-        config: normalizeConfig(raw.config),
+        config: normalizeControlCenterConfig(raw.config),
         serverTime: toStringValue(raw.serverTime, new Date().toISOString()),
         version: toNumber(raw.version, 1),
         permissionCatalog: normalizePermissionCatalog(raw.permissionCatalog),
@@ -277,12 +325,12 @@ function normalizeState(value: unknown): ControlCenterStateResponse {
 }
 
 export function createDefaultControlCenterState(): ControlCenterStateResponse {
-    return {
-        config: { ...DEFAULT_CONFIG },
+    return normalizeState({
+        config: DEFAULT_CONFIG,
         serverTime: new Date().toISOString(),
         version: 1,
         permissionCatalog: [],
-    };
+    });
 }
 
 export function permissionItemsFromState(state: ControlCenterStateResponse | null): PermissionItem[] {

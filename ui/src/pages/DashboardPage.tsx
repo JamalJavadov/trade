@@ -9,11 +9,14 @@ import { Banner } from '../components/Banner';
 import { PlaceableAlertBanner } from '../components/alerts/PlaceableAlertBanner';
 import { getStatus, getLatestRecommendation, getLiveAiModels, updateLiveAiModels, testLiveAiModels } from '../api/client';
 import { usePolling } from '../hooks/usePolling';
+import { useControlCenter } from '../hooks/usePermissions';
+import { listLiveExecutions } from '../api/liveTradingApi';
 import { journalStore } from '../store/journalStore';
 import { Link } from 'react-router-dom';
 
 export const DashboardPage: React.FC = () => {
     const [isScanning, setIsScanning] = useState(false);
+    const { state: controlCenterState } = useControlCenter();
 
     // Poll status every 10s
     const {
@@ -38,6 +41,25 @@ export const DashboardPage: React.FC = () => {
             journalStore.upsertFromLatest(recommendation);
         }
     }, [recommendation]);
+
+    const liveExecutionStatus = React.useMemo(() => {
+        const permissions = controlCenterState?.config.permissions ?? {};
+        return permissions['live.execution.enabled'] === false ? 'disabled' : 'enabled';
+    }, [controlCenterState]);
+
+    const {
+        data: latestExecution,
+    } = usePolling(
+        async () => {
+            if (!recommendation?.id) {
+                return null;
+            }
+            const executions = await listLiveExecutions({ recommendationId: recommendation.id, limit: 1 });
+            return executions[0] ?? null;
+        },
+        10000,
+        isScanning || !recommendation,
+    );
 
     const handleScanStart = () => {
         setIsScanning(true);
@@ -94,14 +116,31 @@ export const DashboardPage: React.FC = () => {
 
             <div className="mt-8">
                 <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
-                    <h2 className="text-xl font-semibold text-gray-200">
-                        Latest Setup
-                    </h2>
+                    <div>
+                        <h2 className="text-xl font-semibold text-gray-200">
+                            Latest Setup
+                        </h2>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            <span className="rounded-full border border-amber-700/40 bg-amber-900/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-amber-200">
+                                Live Execution {liveExecutionStatus}
+                            </span>
+                            {latestExecution && (
+                                <span className="rounded-full border border-sky-700/40 bg-sky-900/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-sky-200">
+                                    Latest Execution {latestExecution.executionState}
+                                </span>
+                            )}
+                        </div>
+                    </div>
                     <Link to="/journal" className="text-sm text-blue-400 hover:text-blue-300">
                         View Journal History &rarr;
                     </Link>
                 </div>
-                <RecommendationCard recommendation={recommendation} loading={recLoading} />
+                <RecommendationCard
+                    recommendation={recommendation}
+                    loading={recLoading}
+                    liveExecutionStatus={liveExecutionStatus}
+                    latestExecutionState={latestExecution?.executionState ?? null}
+                />
             </div>
         </div>
     );

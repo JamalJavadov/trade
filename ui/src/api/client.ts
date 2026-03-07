@@ -96,7 +96,7 @@ export interface FeedbackRequest {
 }
 
 export interface AiSuggestionItemDTO {
-    id: number;
+    id: string;
     key: string;
     proposedValue: string;
     reason: string;
@@ -106,7 +106,7 @@ export interface AiSuggestionItemDTO {
 }
 
 export interface AiSuggestionBatchDTO {
-    id: number;
+    id: string;
     status: string;
     createdAt: string;
     basedOnLastNTrades: number;
@@ -227,16 +227,48 @@ export const submitFeedback = async (id: string, payload: FeedbackRequest): Prom
     await apiClient.post(`/api/v1/recommendations/${id}/feedback`, payload);
 };
 
+function normalizeAiSuggestionLatestResponse(value: unknown): AiSuggestionLatestResponse {
+    const raw = (value && typeof value === 'object') ? value as Record<string, unknown> : {};
+    const rawBatch = raw.batch && typeof raw.batch === 'object' ? raw.batch as Record<string, unknown> : null;
+    const rawItems = Array.isArray(rawBatch?.items)
+        ? rawBatch.items
+        : (Array.isArray(raw.items) ? raw.items : []);
+
+    return {
+        currentActiveConfigVersion: typeof raw.currentActiveConfigVersion === 'number'
+            ? raw.currentActiveConfigVersion
+            : 1,
+        batch: rawBatch ? {
+            id: String(rawBatch.id ?? ''),
+            status: typeof rawBatch.status === 'string' ? rawBatch.status : 'UNKNOWN',
+            createdAt: typeof rawBatch.createdAt === 'string' ? rawBatch.createdAt : new Date().toISOString(),
+            basedOnLastNTrades: typeof rawBatch.basedOnLastNTrades === 'number' ? rawBatch.basedOnLastNTrades : 0,
+            summary: typeof rawBatch.summary === 'string' ? rawBatch.summary : '',
+            items: rawItems
+                .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+                .map((item) => ({
+                    id: String(item.id ?? `${rawBatch.id ?? 'batch'}:${String(item.key ?? 'item')}`),
+                    key: String(item.key ?? ''),
+                    proposedValue: String(item.proposedValue ?? ''),
+                    reason: String(item.reason ?? ''),
+                    impactHypothesis: String(item.impactHypothesis ?? ''),
+                    riskOfChange: String(item.riskOfChange ?? 'MEDIUM'),
+                    status: String(item.status ?? 'UNKNOWN'),
+                })),
+        } : null,
+    };
+}
+
 export const getLatestAiSuggestions = async (): Promise<AiSuggestionLatestResponse> => {
     const res = await apiClient.get<AiSuggestionLatestResponse>('/api/v1/ai/suggestions/latest');
-    return res.data;
+    return normalizeAiSuggestionLatestResponse(res.data);
 };
 
-export const acceptAiBatch = async (batchId: number): Promise<void> => {
+export const acceptAiBatch = async (batchId: string): Promise<void> => {
     await apiClient.post(`/api/v1/ai/suggestions/${batchId}/accept`);
 };
 
-export const rejectAiBatch = async (batchId: number): Promise<void> => {
+export const rejectAiBatch = async (batchId: string): Promise<void> => {
     await apiClient.post(`/api/v1/ai/suggestions/${batchId}/reject`);
 };
 

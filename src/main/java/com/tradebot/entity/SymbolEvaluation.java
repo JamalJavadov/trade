@@ -56,6 +56,46 @@ public class SymbolEvaluation {
     @JdbcTypeCode(SqlTypes.JSON)
     private String diagnosticsJson;
 
+    @Column(name = "trace_id", length = 128)
+    private String traceId;
+
+    @Column(name = "snapshot_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String snapshotJson;
+
+    @Column(name = "integrity_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String integrityJson;
+
+    @Column(name = "deterministic_evidence_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String deterministicEvidenceJson;
+
+    @Column(name = "validation_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String validationJson;
+
+    @Column(name = "confirmation_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String confirmationJson;
+
+    @Column(name = "ai_review_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String aiReviewJson;
+
+    @Column(name = "final_gate_json", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String finalGateJson;
+
+    @Column(name = "recommendation_eligible")
+    private Boolean recommendationEligible;
+
+    @Column(name = "final_integrity_score")
+    private Integer finalIntegrityScore;
+
+    @Column(name = "conflict_state", length = 64)
+    private String conflictState;
+
     @Column(nullable = false)
     private Instant createdAt;
 }
