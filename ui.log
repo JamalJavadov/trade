@@ -2,52 +2,33 @@
 > ui@0.0.0 dev
 > vite
 
+10:09:19 PM [vite] (client) Re-optimizing dependencies because vite config has changed
 
-  VITE v7.3.1  ready in 140 ms
+  VITE v7.3.1  ready in 323 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-8:09:35 PM [vite] http proxy error: /api/v1/recommendations/latest
+10:09:24 PM [vite] http proxy error: /api/v1/recommendations/latest
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-8:09:35 PM [vite] http proxy error: /api/v1/control-center/state
+10:09:24 PM [vite] http proxy error: /api/v1/control-center/state
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-8:09:35 PM [vite] http proxy error: /api/v1/control-center/state
+10:09:24 PM [vite] http proxy error: /api/v1/control-center/state
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-8:09:35 PM [vite] http proxy error: /api/v1/settings
+10:09:28 PM [vite] http proxy error: /api/v1/control-center/state
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-8:09:35 PM [vite] http proxy error: /api/v1/ai/models
+10:09:28 PM [vite] http proxy error: /api/v1/recommendations/latest
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
-8:09:35 PM [vite] http proxy error: /api/v1/settings
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1134:18)
-    at afterConnectMultiple (node:net:1715:7)
-8:09:35 PM [vite] http proxy error: /api/v1/status
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1134:18)
-    at afterConnectMultiple (node:net:1715:7)
-8:09:35 PM [vite] http proxy error: /api/v1/recommendations/latest
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1134:18)
-    at afterConnectMultiple (node:net:1715:7)
-8:09:35 PM [vite] http proxy error: /api/v1/settings
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1134:18)
-    at afterConnectMultiple (node:net:1715:7)
-8:09:35 PM [vite] http proxy error: /api/v1/ai/models
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1134:18)
-    at afterConnectMultiple (node:net:1715:7)
-8:09:35 PM [vite] http proxy error: /api/v1/settings
+10:09:28 PM [vite] http proxy error: /api/v1/control-center/state
 AggregateError [ECONNREFUSED]: 
     at internalConnectMultiple (node:net:1134:18)
     at afterConnectMultiple (node:net:1715:7)
