@@ -1,0 +1,5 @@
+ALTER TABLE app_settings
+    ADD COLUMN IF NOT EXISTS budget_usdt NUMERIC(19, 4),
+    ADD COLUMN IF NOT EXISTS max_budget_pct NUMERIC(5, 2) DEFAULT 5.00,
+    ADD COLUMN IF NOT EXISTS equity_override_usdt NUMERIC(19, 4),
+    ADD COLUMN IF NOT EXISTS max_equity_pct NUMERIC(5, 2) DEFAULT 1.00;

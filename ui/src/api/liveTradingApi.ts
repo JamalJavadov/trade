@@ -24,6 +24,10 @@ export interface LiveTradingProbeResultDTO {
 export interface LiveTradingBinanceStatusDTO {
     credentialsPresent: boolean;
     authValid: boolean | null;
+    credentialSource: string | null;
+    authMode: string | null;
+    accountInfoReadOk: boolean | null;
+    accountConfigReadOk: boolean | null;
     futuresOrderReadOk: boolean | null;
     positionModeReadOk: boolean | null;
     ipAllowlistOk: boolean | null;
@@ -136,6 +140,13 @@ export interface LiveTradingPreflightDTO {
     placeability: RecommendationPlaceabilityDTO | null;
     placeabilityOk: boolean | null;
     blockedReasons: LiveTradeBlockedReasonDTO[];
+    summary: {
+        connectionStatus: 'CONNECTED' | 'NOT_CONNECTED' | 'UNKNOWN';
+        executableNow: boolean;
+        primaryBlockerCode: string | null;
+        primaryBlockerMessage: string | null;
+        advancedDiagnosticsAvailable: boolean;
+    };
 }
 
 export interface LiveTradeExecutionRequestDTO {
@@ -316,6 +327,10 @@ function normalizePreflight(value: unknown): LiveTradingPreflightDTO {
         binance: {
             credentialsPresent: toBoolean(binance.credentialsPresent),
             authValid: toBooleanOrNull(binance.authValid),
+            credentialSource: toStringValue(binance.credentialSource),
+            authMode: toStringValue(binance.authMode),
+            accountInfoReadOk: toBooleanOrNull(binance.accountInfoReadOk),
+            accountConfigReadOk: toBooleanOrNull(binance.accountConfigReadOk),
             futuresOrderReadOk: toBooleanOrNull(binance.futuresOrderReadOk),
             positionModeReadOk: toBooleanOrNull(binance.positionModeReadOk),
             ipAllowlistOk: toBooleanOrNull(binance.ipAllowlistOk),
@@ -357,6 +372,17 @@ function normalizePreflight(value: unknown): LiveTradingPreflightDTO {
         blockedReasons: Array.isArray(raw.blockedReasons)
             ? raw.blockedReasons.map(normalizeBlockedReason)
             : [],
+        summary: (() => {
+            const s = isRecord(raw.summary) ? raw.summary : {};
+            const cs = toStringValue(s.connectionStatus) ?? 'UNKNOWN';
+            return {
+                connectionStatus: (cs === 'CONNECTED' || cs === 'NOT_CONNECTED' ? cs : 'UNKNOWN') as 'CONNECTED' | 'NOT_CONNECTED' | 'UNKNOWN',
+                executableNow: toBoolean(s.executableNow),
+                primaryBlockerCode: toStringValue(s.primaryBlockerCode),
+                primaryBlockerMessage: toStringValue(s.primaryBlockerMessage),
+                advancedDiagnosticsAvailable: toBoolean(s.advancedDiagnosticsAvailable),
+            };
+        })(),
     };
 }
 

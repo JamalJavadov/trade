@@ -24,6 +24,16 @@ public class LiveTradingPreflightDTO {
     private RecommendationPlaceabilityDTO placeability;
     private Boolean placeabilityOk;
     private List<LiveTradeBlockedReasonDTO> blockedReasons = new ArrayList<>();
+    private Summary summary = new Summary();
+
+    @Data
+    public static class Summary {
+        private String connectionStatus = "UNKNOWN";
+        private boolean executableNow;
+        private String primaryBlockerCode;
+        private String primaryBlockerMessage;
+        private boolean advancedDiagnosticsAvailable;
+    }
 
     @Data
     public static class Runtime {
@@ -50,6 +60,10 @@ public class LiveTradingPreflightDTO {
     public static class Binance {
         private boolean credentialsPresent;
         private Boolean authValid;
+        private String credentialSource;
+        private String authMode;
+        private Boolean accountInfoReadOk;
+        private Boolean accountConfigReadOk;
         private Boolean futuresOrderReadOk;
         private Boolean positionModeReadOk;
         private Boolean ipAllowlistOk;

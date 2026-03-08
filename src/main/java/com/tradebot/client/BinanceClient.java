@@ -1,13 +1,17 @@
 package com.tradebot.client;
 
 import com.tradebot.config.AppProperties;
+import com.tradebot.dto.BinanceFuturesAlgoOrderCancelResponse;
+import com.tradebot.dto.BinanceFuturesAlgoOrderResponse;
 import com.tradebot.dto.BinanceExchangeInfoResponse;
 import com.tradebot.dto.BinanceFuturesOrderResponse;
+import com.tradebot.dto.BinanceFuturesPositionRiskResponse;
 import com.tradebot.dto.BinancePremiumIndexResponse;
 import com.tradebot.dto.BinanceTicker24hResponse;
 import com.tradebot.dto.Candle;
 import com.tradebot.guard.NoTradingGuard;
 import com.tradebot.service.BinanceErrorClassifier;
+import com.tradebot.service.BinanceSigningSupport;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.core.ParameterizedTypeReference;
@@ -16,8 +20,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -26,6 +28,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import com.tradebot.service.BinanceCredentialService;
 
 @Component
 public class BinanceClient {
@@ -36,7 +39,12 @@ public class BinanceClient {
     private static final long SIGNED_RECV_WINDOW_MS = 5_000L;
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE = new ParameterizedTypeReference<>() {
     };
-    private static final ParameterizedTypeReference<List<Map<String, Object>>> LIST_OF_MAP_TYPE =
+    private static final ParameterizedTypeReference<List<Map<String, Object>>> LIST_OF_MAP_TYPE = new ParameterizedTypeReference<>() {
+    };
+    private static final ParameterizedTypeReference<List<BinanceFuturesAlgoOrderResponse>> ALGO_ORDER_LIST_TYPE =
+            new ParameterizedTypeReference<>() {
+            };
+    private static final ParameterizedTypeReference<List<BinanceFuturesPositionRiskResponse>> POSITION_RISK_LIST_TYPE =
             new ParameterizedTypeReference<>() {
             };
 
@@ -45,7 +53,6 @@ public class BinanceClient {
     private final WebClient spotTradingWebClient;
     private final RateLimiter rateLimiter;
     private final CandleParser candleParser;
-    private final AppProperties appProperties;
     private final Duration markTimeout = Duration.ofSeconds(3);
     private final Duration requestTimeout = Duration.ofSeconds(8);
     private final Duration tradingRequestTimeout = Duration.ofSeconds(10);
@@ -54,38 +61,31 @@ public class BinanceClient {
     private volatile BinanceExchangeInfoResponse exchangeInfoCache;
     private volatile Instant exchangeInfoCachedAt;
     private volatile long futuresTimeOffsetMs;
+    private final BinanceCredentialService credentialService;
 
     public BinanceClient(WebClient.Builder webClientBuilder,
             NoTradingGuard noTradingGuard,
             RateLimiter rateLimiter,
             CandleParser candleParser,
-            AppProperties appProperties) {
+            AppProperties appProperties,
+            BinanceCredentialService credentialService) {
+        this.credentialService = credentialService;
         final int exchangeInfoBufferBytes = resolveExchangeInfoBufferBytes(appProperties);
-        String apiKey = appProperties != null && appProperties.getBinance() != null
-                ? appProperties.getBinance().getApiKey()
-                : null;
         this.webClient = webClientBuilder.clone()
                 .baseUrl(FUTURES_BASE_URL)
                 .filter(noTradingGuard.preventTradingFilter())
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(exchangeInfoBufferBytes))
                 .build();
-        WebClient.Builder tradingBuilder = webClientBuilder.clone()
+        this.tradingWebClient = webClientBuilder.clone()
                 .baseUrl(FUTURES_BASE_URL)
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(exchangeInfoBufferBytes));
-        if (apiKey != null && !apiKey.isBlank()) {
-            tradingBuilder.defaultHeader("X-MBX-APIKEY", apiKey);
-        }
-        this.tradingWebClient = tradingBuilder.build();
-        WebClient.Builder spotTradingBuilder = webClientBuilder.clone()
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(exchangeInfoBufferBytes))
+                .build();
+        this.spotTradingWebClient = webClientBuilder.clone()
                 .baseUrl(SPOT_BASE_URL)
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(exchangeInfoBufferBytes));
-        if (apiKey != null && !apiKey.isBlank()) {
-            spotTradingBuilder.defaultHeader("X-MBX-APIKEY", apiKey);
-        }
-        this.spotTradingWebClient = spotTradingBuilder.build();
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(exchangeInfoBufferBytes))
+                .build();
         this.rateLimiter = rateLimiter;
         this.candleParser = candleParser;
-        this.appProperties = appProperties;
     }
 
     private int resolveExchangeInfoBufferBytes(AppProperties appProperties) {
@@ -177,15 +177,6 @@ public class BinanceClient {
         return exchangeInfo.getSymbols().stream()
                 .filter(s -> symbol.equalsIgnoreCase(s.getSymbol()))
                 .findFirst();
-    }
-
-    public boolean hasTradingCredentials() {
-        return trimToNull(appProperties != null && appProperties.getBinance() != null
-                ? appProperties.getBinance().getApiKey()
-                : null) != null
-                && trimToNull(appProperties != null && appProperties.getBinance() != null
-                        ? appProperties.getBinance().getApiSecret()
-                        : null) != null;
     }
 
     public String getFuturesBaseUrl() {
@@ -312,6 +303,15 @@ public class BinanceClient {
 
     @CircuitBreaker(name = "binanceApi")
     @Retry(name = "binanceApi")
+    public BinanceFuturesAlgoOrderResponse submitAlgoOrder(Map<String, String> params) {
+        return executeSignedPost("/fapi/v1/algoOrder",
+                new LinkedHashMap<>(params),
+                BinanceFuturesAlgoOrderResponse.class,
+                1);
+    }
+
+    @CircuitBreaker(name = "binanceApi")
+    @Retry(name = "binanceApi")
     public BinanceFuturesOrderResponse getOrder(String symbol, String clientOrderId, Long orderId) {
         LinkedHashMap<String, String> params = new LinkedHashMap<>();
         params.put("symbol", symbol);
@@ -325,6 +325,60 @@ public class BinanceClient {
         return executeSignedGet("/fapi/v1/order", params, BinanceFuturesOrderResponse.class, 1);
     }
 
+    @CircuitBreaker(name = "binanceApi")
+    @Retry(name = "binanceApi")
+    public BinanceFuturesAlgoOrderResponse getAlgoOrder(String clientAlgoId, Long algoId) {
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        if (clientAlgoId != null && !clientAlgoId.isBlank()) {
+            params.put("clientAlgoId", clientAlgoId);
+        } else if (algoId != null) {
+            params.put("algoId", String.valueOf(algoId));
+        } else {
+            throw new IllegalArgumentException("Either clientAlgoId or algoId is required");
+        }
+        return executeSignedGet("/fapi/v1/algoOrder", params, BinanceFuturesAlgoOrderResponse.class, 1);
+    }
+
+    @CircuitBreaker(name = "binanceApi")
+    @Retry(name = "binanceApi")
+    public BinanceFuturesAlgoOrderCancelResponse cancelAlgoOrder(String clientAlgoId, Long algoId) {
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        if (clientAlgoId != null && !clientAlgoId.isBlank()) {
+            params.put("clientAlgoId", clientAlgoId);
+        } else if (algoId != null) {
+            params.put("algoId", String.valueOf(algoId));
+        } else {
+            throw new IllegalArgumentException("Either clientAlgoId or algoId is required");
+        }
+        return executeSignedDelete("/fapi/v1/algoOrder", params, BinanceFuturesAlgoOrderCancelResponse.class, 1);
+    }
+
+    @CircuitBreaker(name = "binanceApi")
+    @Retry(name = "binanceApi")
+    public List<BinanceFuturesAlgoOrderResponse> getOpenAlgoOrders(String symbol, String algoType, Long algoId) {
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        if (algoType != null && !algoType.isBlank()) {
+            params.put("algoType", algoType);
+        }
+        if (symbol != null && !symbol.isBlank()) {
+            params.put("symbol", symbol);
+        }
+        if (algoId != null) {
+            params.put("algoId", String.valueOf(algoId));
+        }
+        return executeSignedGet("/fapi/v1/openAlgoOrders", params, ALGO_ORDER_LIST_TYPE, 1);
+    }
+
+    @CircuitBreaker(name = "binanceApi")
+    @Retry(name = "binanceApi")
+    public List<BinanceFuturesPositionRiskResponse> getPositionRisk(String symbol) {
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        if (symbol != null && !symbol.isBlank()) {
+            params.put("symbol", symbol);
+        }
+        return executeSignedGet("/fapi/v3/positionRisk", params, POSITION_RISK_LIST_TYPE, 5);
+    }
+
     private BinanceExchangeInfoResponse getExchangeInfoCached() {
         BinanceExchangeInfoResponse snapshot = exchangeInfoCache;
         Instant snapshotAt = exchangeInfoCachedAt;
@@ -335,7 +389,8 @@ public class BinanceClient {
         synchronized (exchangeInfoCacheLock) {
             snapshot = exchangeInfoCache;
             snapshotAt = exchangeInfoCachedAt;
-            if (snapshot != null && snapshotAt != null && snapshotAt.plus(exchangeInfoCacheTtl).isAfter(Instant.now())) {
+            if (snapshot != null && snapshotAt != null
+                    && snapshotAt.plus(exchangeInfoCacheTtl).isAfter(Instant.now())) {
                 return snapshot;
             }
 
@@ -374,6 +429,13 @@ public class BinanceClient {
         return executeSigned(path, HttpMethod.POST, params, null, responseType, weight);
     }
 
+    private <T> T executeSignedDelete(String path,
+            LinkedHashMap<String, String> params,
+            Class<T> responseType,
+            int weight) {
+        return executeSigned(path, HttpMethod.DELETE, params, responseType, null, weight);
+    }
+
     private <T> T executeSignedSpotGet(String path,
             LinkedHashMap<String, String> params,
             ParameterizedTypeReference<T> responseType,
@@ -397,10 +459,20 @@ public class BinanceClient {
             Class<T> responseClass,
             ParameterizedTypeReference<T> responseType,
             int weight) {
-        ensureTradingCredentialsPresent();
-
+        BinanceCredentialService.ResolvedCredential resolved = credentialService.resolveActiveCredential();
         rateLimiter.consume(Math.max(weight, 1));
-        return executeSignedOnce(signedClient, path, method, params, responseClass, responseType, true);
+        return executeSignedOnce(
+                signedClient,
+                path,
+                method,
+                params,
+                responseClass,
+                responseType,
+                true,
+                resolved.apiKey(),
+                resolved.privateKeyOrSecret(),
+                resolved.authMode(),
+                resolved.source());
     }
 
     private <T> T executeSignedOnce(WebClient signedClient,
@@ -409,18 +481,40 @@ public class BinanceClient {
             LinkedHashMap<String, String> params,
             Class<T> responseClass,
             ParameterizedTypeReference<T> responseType,
-            boolean allowTimestampRetry) {
+            boolean allowTimestampRetry,
+            String overrideApiKey,
+            String overridePrivateKeyStr,
+            String overrideAuthMode,
+            String overrideCredentialSource) {
+
+        String activeApiKey = overrideApiKey;
+        String activePrivateKeyStr = overridePrivateKeyStr;
+        String activeAuthMode = overrideAuthMode;
+        String activeCredentialSource = overrideCredentialSource;
+
+        if (activePrivateKeyStr == null || activeAuthMode == null) {
+            BinanceCredentialService.ResolvedCredential resolved = credentialService.resolveActiveCredential();
+            if (activeApiKey == null) {
+                activeApiKey = resolved.apiKey();
+            }
+            activePrivateKeyStr = resolved.privateKeyOrSecret();
+            activeAuthMode = resolved.authMode();
+            activeCredentialSource = resolved.source();
+        }
+
         LinkedHashMap<String, String> working = new LinkedHashMap<>(params);
         working.put("timestamp", String.valueOf(System.currentTimeMillis() + futuresTimeOffsetMs));
         working.put("recvWindow", String.valueOf(SIGNED_RECV_WINDOW_MS));
 
         String query = buildQueryString(working);
-        String signature = sign(query);
+        String signature = sign(query, activePrivateKeyStr, activeAuthMode, activeCredentialSource);
         String uri = path + "?" + query + "&signature=" + encode(signature);
 
-        WebClient.RequestHeadersSpec<?> request = method == HttpMethod.GET
-                ? signedClient.get().uri(uri)
-                : signedClient.post().uri(uri);
+        WebClient.RequestHeadersSpec<?> request = signedClient.method(method).uri(uri);
+
+        if (activeApiKey != null) {
+            request.header("X-MBX-APIKEY", activeApiKey);
+        }
 
         try {
             if (responseClass != null) {
@@ -437,16 +531,33 @@ public class BinanceClient {
             if (allowTimestampRetry
                     && BinanceErrorClassifier.isTimestampInvalid(BinanceErrorClassifier.from(ex))
                     && syncFuturesTimeOffset()) {
-                return executeSignedOnce(signedClient, path, method, params, responseClass, responseType, false);
+                return executeSignedOnce(signedClient, path, method, params, responseClass, responseType, false,
+                        overrideApiKey, overridePrivateKeyStr, overrideAuthMode, overrideCredentialSource);
             }
             throw ex;
         }
     }
 
-    private void ensureTradingCredentialsPresent() {
-        if (!hasTradingCredentials()) {
-            throw new IllegalStateException("Binance trading credentials are missing.");
-        }
+    public Map<String, Object> verifyFuturesAccount(String apiKey,
+            String privateKeyPem,
+            String authMode,
+            String credentialSource) {
+        return executeSignedOnce(tradingWebClient, "/fapi/v2/account", HttpMethod.GET, new LinkedHashMap<>(), null,
+                MAP_TYPE, true, apiKey, privateKeyPem, authMode, credentialSource);
+    }
+
+    public Map<String, Object> verifyFuturesAccountConfig(String apiKey,
+            String privateKeyPem,
+            String authMode,
+            String credentialSource) {
+        return executeSignedOnce(tradingWebClient, "/fapi/v1/accountConfig", HttpMethod.GET, new LinkedHashMap<>(),
+                null,
+                MAP_TYPE,
+                true,
+                apiKey,
+                privateKeyPem,
+                authMode,
+                credentialSource);
     }
 
     private boolean syncFuturesTimeOffset() {
@@ -474,31 +585,15 @@ public class BinanceClient {
         return sb.toString();
     }
 
-    private String sign(String payload) {
-        try {
-            String secret = appProperties.getBinance().getApiSecret();
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            byte[] raw = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder(raw.length * 2);
-            for (byte value : raw) {
-                hex.append(String.format("%02x", value));
-            }
-            return hex.toString();
-        } catch (Exception ex) {
-            throw new IllegalStateException("Unable to sign Binance request.", ex);
-        }
+    private String sign(String payload,
+            String privateKeyStr,
+            String activeAuthMode,
+            String credentialSource) {
+        return BinanceSigningSupport.sign(payload, privateKeyStr, activeAuthMode, credentialSource);
     }
 
     private String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
-    }
-
-    private String trimToNull(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return value.trim();
     }
 
     private boolean isBenignConfigurationResponse(WebClientResponseException ex, String expectedMessage) {

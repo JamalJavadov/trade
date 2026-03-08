@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.ModelRouterTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:24" hostname="CamaltekiMacBook-Pro.local" time="0.036">
+  <properties/>
+  <testcase name="primarySuccessShortCircuitsFallbackChain()" classname="com.tradebot.ModelRouterTest" time="0.034"/>
+  <testcase name="retryableFailureFallsBackToNextModel()" classname="com.tradebot.ModelRouterTest" time="0.001"/>
+  <testcase name="nonRetryableFailureStopsChain()" classname="com.tradebot.ModelRouterTest" time="0.0"/>
+  <testcase name="allFailuresReturnStructuredResultWithoutThrowing()" classname="com.tradebot.ModelRouterTest" time="0.001"/>
+  <system-out><![CDATA[2026-03-08T15:34:24.188+04:00  WARN 98901 --- [    Test worker] com.tradebot.ai.ModelRouter              : All AI model attempts failed for task=SUGGESTION_BATCH mode=LIVE traceId=a21d6719-0d96-4111-9fd6-1a854ddbd513 errorCode=OPENROUTER_AUTH
+2026-03-08T15:34:24.189+04:00  WARN 98901 --- [    Test worker] com.tradebot.ai.ModelRouter              : All AI model attempts failed for task=SUGGESTION_BATCH mode=DEMO traceId=5bdc846c-4f80-4f54-8f9d-c0737e95f231 errorCode=OPENROUTER_INTERNAL
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

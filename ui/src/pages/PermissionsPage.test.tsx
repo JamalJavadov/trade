@@ -12,12 +12,18 @@ const {
     getAutoScanStateMock,
     runScanOnceMock,
     patchConfigMock,
+    binanceGetStatusMock,
+    binanceSaveCredentialsMock,
+    binanceTestCredentialsMock,
 } = vi.hoisted(() => ({
     usePermissionsMock: vi.fn(),
     useControlCenterMock: vi.fn(),
     getAutoScanStateMock: vi.fn(),
     runScanOnceMock: vi.fn(),
     patchConfigMock: vi.fn(),
+    binanceGetStatusMock: vi.fn(),
+    binanceSaveCredentialsMock: vi.fn(),
+    binanceTestCredentialsMock: vi.fn(),
 }));
 
 vi.mock('../hooks/usePermissions', () => ({
@@ -31,6 +37,14 @@ vi.mock('../api/autoscanApi', () => ({
 
 vi.mock('../api/client', () => ({
     runScanOnce: runScanOnceMock,
+}));
+
+vi.mock('../api/binanceCredentialsApi', () => ({
+    binanceCredentialsApi: {
+        getStatus: binanceGetStatusMock,
+        saveCredentials: binanceSaveCredentialsMock,
+        testCredentials: binanceTestCredentialsMock,
+    },
 }));
 
 const controlCenterState: ControlCenterStateResponse = {
@@ -163,6 +177,24 @@ describe('PermissionsPage autoscan runtime', () => {
         getAutoScanStateMock.mockResolvedValue(runtimeState);
         runScanOnceMock.mockResolvedValue({ scanRunId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', status: 'STARTED' });
         patchConfigMock.mockResolvedValue(controlCenterState);
+        binanceGetStatusMock.mockResolvedValue({
+            status: 'CONFIGURED',
+            authMode: 'HMAC_SECRET',
+            credentialSource: 'SECURE_UI_SAVED',
+            updatedAt: '2026-03-05T12:00:00Z',
+        });
+        binanceSaveCredentialsMock.mockResolvedValue({
+            status: 'CONFIGURED',
+            authMode: 'HMAC_SECRET',
+            credentialSource: 'SECURE_UI_SAVED',
+        });
+        binanceTestCredentialsMock.mockResolvedValue({
+            status: 'SUCCESS',
+            authMode: 'HMAC_SECRET',
+            credentialSource: 'SECURE_UI_SAVED',
+            endpointFamily: 'BINANCE_FUTURES',
+            executableForLiveFutures: true,
+        });
 
         usePermissionsMock.mockReturnValue({
             permissions: [

@@ -1,0 +1,6 @@
+# Agent should not read these paths
+target/
+.git/
+node_modules/
+*.log
+*.class

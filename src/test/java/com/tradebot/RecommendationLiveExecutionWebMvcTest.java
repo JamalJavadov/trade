@@ -101,6 +101,34 @@ class RecommendationLiveExecutionWebMvcTest {
     }
 
     @Test
+    void executionPreflightPreservesCredentialDecryptFailureCode() throws Exception {
+        UUID recommendationId = UUID.fromString("00000000-0000-0000-0000-000000000107");
+        LiveTradingPreflightDTO dto = new LiveTradingPreflightDTO();
+        dto.setRecommendationId(recommendationId);
+        dto.setAllowed(false);
+        dto.setExecutable(false);
+        dto.getBinance().setBlockerCode("CREDENTIAL_DECRYPT_FAILED");
+        dto.getSummary().setPrimaryBlockerCode("CREDENTIAL_DECRYPT_FAILED");
+        dto.getSummary().setPrimaryBlockerMessage("Binance credentials could not be decrypted. Re-save credentials in Settings.");
+
+        LocalMutationGuard.LocalRequestCheck check = new LocalMutationGuard.LocalRequestCheck(
+                true,
+                "127.0.0.1",
+                null,
+                "http://localhost:5173",
+                null);
+        when(localMutationGuard.evaluate(any())).thenReturn(check);
+        when(liveTradingPreflightService.evaluate(recommendationId, null, check)).thenReturn(dto);
+
+        mockMvc.perform(get("/api/v1/recommendations/{id}/execution-preflight", recommendationId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.binance.blockerCode").value("CREDENTIAL_DECRYPT_FAILED"))
+                .andExpect(jsonPath("$.summary.primaryBlockerCode").value("CREDENTIAL_DECRYPT_FAILED"))
+                .andExpect(jsonPath("$.summary.primaryBlockerMessage")
+                        .value("Binance credentials could not be decrypted. Re-save credentials in Settings."));
+    }
+
+    @Test
     void executeLiveRequiresOperatorPermission() throws Exception {
         doThrow(new ForbiddenPermissionException("live.execution.enabled", "Enable Live Execution"))
                 .when(operatorPermissionService)

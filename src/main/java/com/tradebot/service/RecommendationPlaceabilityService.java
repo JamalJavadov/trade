@@ -117,6 +117,17 @@ public class RecommendationPlaceabilityService {
         dto.setAdjustments(result.adjustments());
 
         if (result.placeable()) {
+            String qtyViolation = validateOrderQuantity(rec);
+            if (qtyViolation != null) {
+                List<String> violations = new ArrayList<>(result.violations());
+                violations.add(qtyViolation);
+                dto.setViolations(violations);
+                dto.setPlaceable(false);
+                dto.setManualPlacementAllowed(false);
+                dto.setReasonCode("LOT_SIZE_VIOLATION");
+                dto.setReasonText("Order quantity does not satisfy Binance LOT_SIZE filter.");
+                return dto;
+            }
             dto.setPlaceable(true);
             dto.setManualPlacementAllowed(true);
             dto.setReasonCode("OK");
@@ -140,6 +151,55 @@ public class RecommendationPlaceabilityService {
         dto.setReasonCode("PRICE_MOVED");
         dto.setReasonText("Market price moved and setup is no longer placeable.");
         return dto;
+    }
+
+    private String validateOrderQuantity(Recommendation rec) {
+        OrderFields fields = rec.getOrderFields();
+        if (fields == null || fields.getEntryOrderJson() == null) {
+            return null;
+        }
+        BigDecimal quantity;
+        try {
+            BinanceOrderFieldsDTO entry = objectMapper.readValue(fields.getEntryOrderJson(),
+                    BinanceOrderFieldsDTO.class);
+            quantity = entry.getQuantity();
+        } catch (Exception ignored) {
+            return null;
+        }
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+
+        java.util.Optional<com.tradebot.dto.BinanceExchangeInfoResponse.SymbolInfo> symbolInfoOpt = binanceClient
+                .getSymbolInfo(rec.getSymbol());
+        if (symbolInfoOpt.isEmpty()) {
+            return null;
+        }
+        com.tradebot.dto.BinanceExchangeInfoResponse.SymbolInfo symbolInfo = symbolInfoOpt.get();
+
+        BigDecimal minQty = symbolInfo.getMinQty();
+        if (minQty != null && minQty.compareTo(BigDecimal.ZERO) > 0 && quantity.compareTo(minQty) < 0) {
+            return String.format("Order quantity %s is below Binance LOT_SIZE minimum %s for %s.",
+                    quantity.toPlainString(), minQty.toPlainString(), rec.getSymbol());
+        }
+
+        BigDecimal marketMinQty = symbolInfo.getMarketMinQty();
+        if (marketMinQty != null && marketMinQty.compareTo(BigDecimal.ZERO) > 0
+                && quantity.compareTo(marketMinQty) < 0) {
+            return String.format("Order quantity %s is below Binance MARKET_LOT_SIZE minimum %s for %s.",
+                    quantity.toPlainString(), marketMinQty.toPlainString(), rec.getSymbol());
+        }
+
+        BigDecimal stepSize = symbolInfo.getStepSize();
+        if (stepSize != null && stepSize.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal remainder = quantity.remainder(stepSize).abs();
+            if (remainder.compareTo(BigDecimal.ZERO) != 0) {
+                return String.format("Order quantity %s is not a multiple of LOT_SIZE stepSize %s for %s.",
+                        quantity.toPlainString(), stepSize.toPlainString(), rec.getSymbol());
+            }
+        }
+
+        return null;
     }
 
     private RecommendationPlaceabilityDTO handleWebClientResponseException(RecommendationPlaceabilityDTO dto,

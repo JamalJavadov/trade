@@ -1,5 +1,5 @@
 # Backlog
 
-| ID | Severity | Area | Description | Status |
+| Title | Severity | Rationale | Fix | Verify |
 |---|---|---|---|---|
-| [ID] | [High/Medium/Low] | [Component] | [Description of issue or task] | [Open/In Progress/Done] |
+| [FILL_ME] | [FILL_ME] | [FILL_ME] | [FILL_ME] | [FILL_ME] |

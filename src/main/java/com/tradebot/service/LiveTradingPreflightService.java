@@ -24,7 +24,6 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,8 +36,20 @@ import java.util.UUID;
 public class LiveTradingPreflightService {
 
     private static final long RECOMMENDATION_STALE_THRESHOLD_SECONDS = Duration.of(15, ChronoUnit.MINUTES).toSeconds();
-    private static final List<LiveTradeExecutionState> ACTIVE_EXECUTION_STATES = Arrays.stream(
-            LiveTradeExecutionState.values()).filter(LiveTradeExecutionState::isActive).toList();
+    private static final List<LiveTradeExecutionState> DUPLICATE_BLOCK_STATES = List.of(
+            LiveTradeExecutionState.REQUESTED,
+            LiveTradeExecutionState.SUBMITTING,
+            LiveTradeExecutionState.ENTRY_SUBMITTED,
+            LiveTradeExecutionState.ENTRY_PARTIALLY_FILLED,
+            LiveTradeExecutionState.ENTRY_FILLED,
+            LiveTradeExecutionState.PROTECTION_SUBMITTING,
+            LiveTradeExecutionState.PROTECTION_SUBMITTED,
+            LiveTradeExecutionState.PROTECTION_ACTIVE,
+            LiveTradeExecutionState.OPEN,
+            LiveTradeExecutionState.RECONCILING,
+            LiveTradeExecutionState.PENDING_RECONCILE,
+            LiveTradeExecutionState.PROTECTION_FAILED,
+            LiveTradeExecutionState.EMERGENCY_CLOSE_SUBMITTED);
 
     private final RecommendationRepository recommendationRepository;
     private final LiveTradeExecutionRepository liveTradeExecutionRepository;
@@ -79,7 +90,8 @@ public class LiveTradingPreflightService {
         return dto;
     }
 
-    public LiveTradingPreflightDTO evaluateHealth(String symbol, LocalMutationGuard.LocalRequestCheck localRequestCheck) {
+    public LiveTradingPreflightDTO evaluateHealth(String symbol,
+            LocalMutationGuard.LocalRequestCheck localRequestCheck) {
         LiveTradingPreflightDTO dto = new LiveTradingPreflightDTO();
         dto.setCheckedAt(Instant.now());
         dto.setSymbol(symbol == null || symbol.isBlank() ? "BTCUSDT" : symbol.trim().toUpperCase());
@@ -121,7 +133,7 @@ public class LiveTradingPreflightService {
             LiveTradeExecution activeExecution = liveTradeExecutionRepository
                     .findFirstByRecommendation_IdAndExecutionStateInOrderByCreatedAtDesc(
                             recommendation.getId(),
-                            ACTIVE_EXECUTION_STATES)
+                            DUPLICATE_BLOCK_STATES)
                     .orElse(null);
             if (activeExecution != null && !activeExecution.getId().equals(ignoreExecutionId)) {
                 dto.getRuntime().setDuplicateSubmitBlocked(true);
@@ -155,7 +167,8 @@ public class LiveTradingPreflightService {
         }
     }
 
-    private void populateLocalRequest(LiveTradingPreflightDTO dto, LocalMutationGuard.LocalRequestCheck localRequestCheck) {
+    private void populateLocalRequest(LiveTradingPreflightDTO dto,
+            LocalMutationGuard.LocalRequestCheck localRequestCheck) {
         if (localRequestCheck == null) {
             dto.getLocalRequest().setAllowed(true);
             return;
@@ -223,7 +236,8 @@ public class LiveTradingPreflightService {
             addExchangeFailure(dto, "Symbol is not a USDT perpetual futures contract.");
         }
 
-        BigDecimal markPrice = toBigDecimal(dto.getPlaceability() != null ? dto.getPlaceability().getMarkPrice() : null);
+        BigDecimal markPrice = toBigDecimal(
+                dto.getPlaceability() != null ? dto.getPlaceability().getMarkPrice() : null);
         if (markPrice == null) {
             try {
                 markPrice = binanceClient.getMarkPrice(recommendation.getSymbol());
@@ -316,9 +330,10 @@ public class LiveTradingPreflightService {
         dto.setBinance(diagnostics);
         if (diagnostics.getBlockerCode() != null) {
             Map<String, Object> details = new LinkedHashMap<>();
+            details.put("credentialSource", diagnostics.getCredentialSource());
+            details.put("authMode", diagnostics.getAuthMode());
             details.put("endpointFamily", diagnostics.getEndpointFamily());
             details.put("baseUrl", diagnostics.getBaseUrl());
-            details.put("spotBaseUrl", diagnostics.getSpotBaseUrl());
             details.put("recvWindowMs", diagnostics.getRecvWindowMs());
             details.put("timestampSkewMs", diagnostics.getTimestampSkewMs());
             details.put("requestIpHint", diagnostics.getRequestIpHint());
@@ -351,9 +366,12 @@ public class LiveTradingPreflightService {
             return null;
         }
         try {
-            BinanceOrderFieldsDTO entry = objectMapper.readValue(orderFields.getEntryOrderJson(), BinanceOrderFieldsDTO.class);
-            BinanceOrderFieldsDTO sl = objectMapper.readValue(orderFields.getSlOrderJson(), BinanceOrderFieldsDTO.class);
-            BinanceOrderFieldsDTO tp = objectMapper.readValue(orderFields.getTpOrderJson(), BinanceOrderFieldsDTO.class);
+            BinanceOrderFieldsDTO entry = objectMapper.readValue(orderFields.getEntryOrderJson(),
+                    BinanceOrderFieldsDTO.class);
+            BinanceOrderFieldsDTO sl = objectMapper.readValue(orderFields.getSlOrderJson(),
+                    BinanceOrderFieldsDTO.class);
+            BinanceOrderFieldsDTO tp = objectMapper.readValue(orderFields.getTpOrderJson(),
+                    BinanceOrderFieldsDTO.class);
             return new OrderPayloads(entry, sl, tp);
         } catch (Exception ex) {
             return null;
@@ -367,6 +385,71 @@ public class LiveTradingPreflightService {
         boolean executable = dto.getBlockedReasons().isEmpty();
         dto.setExecutable(executable);
         dto.setAllowed(executable);
+        finalizeSummary(dto);
+    }
+
+    private void finalizeSummary(LiveTradingPreflightDTO dto) {
+        LiveTradingPreflightDTO.Summary summary = dto.getSummary();
+
+        Boolean authValid = dto.getBinance().getAuthValid();
+        if (Boolean.TRUE.equals(authValid)) {
+            summary.setConnectionStatus("CONNECTED");
+        } else if (Boolean.FALSE.equals(authValid)) {
+            summary.setConnectionStatus("NOT_CONNECTED");
+        } else {
+            summary.setConnectionStatus("UNKNOWN");
+        }
+
+        summary.setExecutableNow(dto.isExecutable());
+        summary.setAdvancedDiagnosticsAvailable(!dto.getBlockedReasons().isEmpty());
+
+        if (!dto.getBlockedReasons().isEmpty()) {
+            LiveTradeBlockedReasonDTO primary = dto.getBlockedReasons().get(0);
+            summary.setPrimaryBlockerCode(primary.getCode());
+            summary.setPrimaryBlockerMessage(toOperatorMessage(primary));
+        }
+    }
+
+    private String toOperatorMessage(LiveTradeBlockedReasonDTO reason) {
+        return switch (reason.getCode()) {
+            case LiveTradingBlockerCodes.LIVE_EXECUTION_DISABLED ->
+                "Trading is disabled in Control Center.";
+            case LiveTradingBlockerCodes.BOT_READ_ONLY ->
+                "Bot is in read-only mode. Disable read-only in Control Center.";
+            case LiveTradingBlockerCodes.LOCAL_MUTATION_BLOCKED ->
+                "Live execution requires a local request. Open the UI from localhost.";
+            case LiveTradingBlockerCodes.RECOMMENDATION_STALE ->
+                "Recommendation is stale. Refresh or start a new scan.";
+            case LiveTradingBlockerCodes.DUPLICATE_SUBMIT_BLOCKED ->
+                "An in-flight execution for this recommendation is still active. Wait for it to complete.";
+            case LiveTradingBlockerCodes.PLACEABILITY_FAILED ->
+                "Recommendation is not placeable right now.";
+            case LiveTradingBlockerCodes.EXCHANGE_FILTER_INVALID ->
+                "Order fields do not pass Binance exchange filters.";
+            case LiveTradingBlockerCodes.CREDENTIAL_DECRYPT_FAILED ->
+                "Binance credentials could not be decrypted. Re-save credentials in Settings.";
+            case LiveTradingBlockerCodes.CREDENTIAL_RECORD_CORRUPT ->
+                "Saved Binance credentials are incomplete. Re-save credentials in Settings.";
+            case LiveTradingBlockerCodes.CREDENTIAL_AUTH_MODE_UNKNOWN ->
+                "Credential auth mode is inconsistent. Update credentials in Settings.";
+            case LiveTradingBlockerCodes.CREDENTIAL_SOURCE_MISMATCH ->
+                "The selected test credentials do not match the active saved auth mode.";
+            case LiveTradingBlockerCodes.USER_CONFIGURATION_MISMATCH ->
+                "The saved Binance credentials do not match the selected asymmetric credential type.";
+            case LiveTradingBlockerCodes.PLACEHOLDER_CREDENTIALS_DETECTED ->
+                "The Binance credentials appear to be placeholder or demo values.";
+            case LiveTradingBlockerCodes.BINANCE_AUTH_INVALID ->
+                "Binance credentials are invalid.";
+            case LiveTradingBlockerCodes.BINANCE_SIGNING_FAILED ->
+                "The backend could not sign the Binance request for the selected credential type.";
+            case LiveTradingBlockerCodes.BINANCE_IP_NOT_ALLOWED ->
+                "This server's IP is not on the Binance API allowlist.";
+            case LiveTradingBlockerCodes.BINANCE_FUTURES_PERMISSION_MISSING ->
+                "Binance API key is missing Futures trading permission.";
+            case LiveTradingBlockerCodes.BINANCE_NETWORK ->
+                "Cannot reach Binance API. Check network connectivity.";
+            default -> reason.getMessage() != null ? reason.getMessage() : reason.getCode();
+        };
     }
 
     private void addBlocked(LiveTradingPreflightDTO dto,

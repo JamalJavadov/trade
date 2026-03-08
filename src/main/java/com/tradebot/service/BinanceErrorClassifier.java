@@ -100,19 +100,19 @@ public final class BinanceErrorClassifier {
             case LiveTradingBlockerCodes.BINANCE_TIMESTAMP_INVALID ->
                 "Binance rejected the signed request because the local timestamp is outside recvWindow.";
             case LiveTradingBlockerCodes.BINANCE_SIGNING_FAILED ->
-                "Binance rejected the request signature. Check HMAC signing and API secret binding.";
+                "Binance rejected the signed request for the selected credential type.";
             case LiveTradingBlockerCodes.BINANCE_ENDPOINT_MISCONFIGURED ->
                 "Binance endpoint family/path is misconfigured for Futures signed requests.";
             case LiveTradingBlockerCodes.BINANCE_IP_NOT_ALLOWED ->
                 "Binance rejected the backend host IP. Verify the Binance trusted IP allowlist.";
             case LiveTradingBlockerCodes.BINANCE_FUTURES_PERMISSION_MISSING ->
-                "Spot auth works, but Binance Futures signed access is missing for this API key.";
+                "Binance authenticated the request, but this API key cannot trade USD-M Futures.";
             case LiveTradingBlockerCodes.BINANCE_RATE_LIMIT ->
                 "Binance rate limit exceeded during live-trading diagnostics.";
             case LiveTradingBlockerCodes.BINANCE_NETWORK ->
                 "Binance network request timed out or lost connectivity.";
             case LiveTradingBlockerCodes.BINANCE_AUTH_INVALID ->
-                "Binance signed auth failed. Check API key, secret, Futures permission, and any trusted IP policy.";
+                "Binance authentication failed for the selected credential type. Check the API key, matching secret/private key, Futures permission, and any trusted IP policy.";
             default -> details != null && details.binanceMessage() != null && !details.binanceMessage().isBlank()
                     ? details.binanceMessage()
                     : "Binance rejected the live-trading request.";
@@ -151,7 +151,7 @@ public final class BinanceErrorClassifier {
         String message = normalizedMessage(details);
         return message.contains("request ip:")
                 || message.contains("not in the api whitelist")
-                || message.contains("invalid api-key, ip, or permissions for action");
+                || message.contains("api whitelist");
     }
 
     public static boolean isEndpointMisconfigured(BinanceErrorDetails details) {

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.AiDiagnosticsControllerWebMvcTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:22" hostname="CamaltekiMacBook-Pro.local" time="0.064">
+  <properties/>
+  <testcase name="diagnosticsReturns403WhenVisionFlagDisabled()" classname="com.tradebot.AiDiagnosticsControllerWebMvcTest" time="0.058"/>
+  <testcase name="diagnosticsReturns200AndStructuredJson()" classname="com.tradebot.AiDiagnosticsControllerWebMvcTest" time="0.003"/>
+  <testcase name="diagnosticsFallbackSerializationIsStable()" classname="com.tradebot.AiDiagnosticsControllerWebMvcTest" time="0.002"/>
+  <system-out><![CDATA[2026-03-08T15:34:22.306+04:00  INFO 98901 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.AiDiagnosticsControllerWebMvcTest]: AiDiagnosticsControllerWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-08T15:34:22.309+04:00  INFO 98901 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.AiDiagnosticsControllerWebMvcTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.4)
+
+2026-03-08T15:34:22.323+04:00  INFO 98901 --- [    Test worker] c.t.AiDiagnosticsControllerWebMvcTest    : Starting AiDiagnosticsControllerWebMvcTest using Java 21.0.9 with PID 98901 (started by camal in /Users/camal/Documents/trade/trade bot)
+2026-03-08T15:34:22.323+04:00  INFO 98901 --- [    Test worker] c.t.AiDiagnosticsControllerWebMvcTest    : No active profile set, falling back to 1 default profile: "default"
+2026-03-08T15:34:22.482+04:00  INFO 98901 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-08T15:34:22.482+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-08T15:34:22.482+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-08T15:34:22.487+04:00  INFO 98901 --- [    Test worker] c.t.AiDiagnosticsControllerWebMvcTest    : Started AiDiagnosticsControllerWebMvcTest in 0.175 seconds (process running for 2.273)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -19,6 +19,23 @@ class LiveTradingManualTriggerArchitectureTest {
                         "src/main/java/com/tradebot/service/LiveTradingExecutionService.java"),
                 filesContaining("submitOrder("));
         assertEquals(Set.of(
+                        "src/main/java/com/tradebot/client/BinanceClient.java",
+                        "src/main/java/com/tradebot/service/LiveTradingExecutionService.java"),
+                filesContaining("submitAlgoOrder("));
+        assertEquals(Set.of(
+                        "src/main/java/com/tradebot/client/BinanceClient.java",
+                        "src/main/java/com/tradebot/service/LiveTradingReconciliationService.java"),
+                filesContaining("getAlgoOrder("));
+        assertEquals(Set.of(
+                        "src/main/java/com/tradebot/client/BinanceClient.java",
+                        "src/main/java/com/tradebot/service/LiveTradingReconciliationService.java"),
+                filesContaining("getOpenAlgoOrders("));
+        assertEquals(Set.of(
+                        "src/main/java/com/tradebot/client/BinanceClient.java",
+                        "src/main/java/com/tradebot/service/LiveTradingExecutionService.java",
+                        "src/main/java/com/tradebot/service/LiveTradingReconciliationService.java"),
+                filesContaining("getPositionRisk("));
+        assertEquals(Set.of(
                         "src/main/java/com/tradebot/service/LiveTradingExecutionService.java"),
                 filesContaining("binanceClient.setLeverage("));
         assertEquals(Set.of(

@@ -35,15 +35,44 @@ function formatMaybe(value: unknown): string {
     return String(value);
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+        ? value as Record<string, unknown>
+        : {};
+}
+
+function asString(value: unknown): string | null {
+    return typeof value === 'string' && value.trim() !== '' ? value : null;
+}
+
+function asBoolean(value: unknown): boolean | null {
+    return typeof value === 'boolean' ? value : null;
+}
+
+function sectionOf(execution: LiveTradeExecutionDTO, key: string): Record<string, unknown> {
+    return asRecord(execution.exchangeResponse[key]);
+}
+
+function sectionField(section: Record<string, unknown>, key: string): unknown {
+    if (section[key] != null) {
+        return section[key];
+    }
+    const response = asRecord(section.response);
+    return response[key];
+}
+
 function statusTone(state: string): string {
-    if (state === 'RECONCILED' || state === 'OPEN' || state === 'DRY_RUN') {
+    if (state === 'PROTECTION_ACTIVE' || state === 'OPEN' || state === 'DRY_RUN') {
         return 'border-emerald-700/50 bg-emerald-900/25 text-emerald-200';
+    }
+    if (state === 'RECONCILED') {
+        return 'border-emerald-700/50 bg-emerald-900/25 text-emerald-200';
+    }
+    if (state === 'EMERGENCY_CLOSE_FILLED' || state === 'RECONCILING' || state === 'PENDING_RECONCILE') {
+        return 'border-amber-700/50 bg-amber-900/30 text-amber-200';
     }
     if (state === 'BLOCKED' || state === 'FAILED' || state === 'PROTECTION_FAILED' || state === 'EMERGENCY_CLOSE_FAILED') {
         return 'border-rose-700/50 bg-rose-900/30 text-rose-200';
-    }
-    if (state === 'PENDING_RECONCILE') {
-        return 'border-amber-700/50 bg-amber-900/30 text-amber-200';
     }
     return 'border-sky-700/50 bg-sky-900/25 text-sky-200';
 }
@@ -86,7 +115,49 @@ function createClientRequestId(): string {
     return `manual-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function ExecutionStatusPanel({
+    label,
+    title,
+    description,
+}: {
+    label: string;
+    title: string;
+    description: string;
+}) {
+    return (
+        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+            <p className="text-xs uppercase tracking-wider text-slate-400">{label}</p>
+            <p className="mt-2 text-sm font-semibold text-white">{title}</p>
+            <p className="mt-1 text-xs text-slate-400">{description}</p>
+        </div>
+    );
+}
+
 function ExecutionCard({ execution }: { execution: LiveTradeExecutionDTO }) {
+    const entry = sectionOf(execution, 'entry');
+    const stopLoss = sectionOf(execution, 'stopLoss');
+    const takeProfit = sectionOf(execution, 'takeProfit');
+    const protectionFailure = sectionOf(execution, 'protectionFailure');
+    const emergencyClose = sectionOf(execution, 'emergencyClose');
+    const position = sectionOf(execution, 'position');
+    const reconciliation = sectionOf(execution, 'reconciliation');
+
+    const failedLegs = Array.isArray(protectionFailure.failedLegs)
+        ? protectionFailure.failedLegs.filter((value): value is string => typeof value === 'string')
+        : [];
+    const downsideProtected = asBoolean(protectionFailure.downsideProtected) ?? asBoolean(reconciliation.downsideProtected);
+    const emergencyCloseWorking = asBoolean(reconciliation.emergencyCloseWorking);
+    const hasPosition = asBoolean(reconciliation.hasPosition);
+    const entryResolvedState = asString(entry.resolvedState) ?? execution.executionState;
+    const entryOrderStatus = asString(sectionField(entry, 'status')) ?? 'n/a';
+    const entryFilledQty = sectionField(entry, 'resolvedFilledQuantity') ?? sectionField(entry, 'executedQty');
+    const entryAvgPrice = sectionField(entry, 'resolvedAvgPrice') ?? sectionField(entry, 'avgPrice');
+    const stopLossStatus = asString(sectionField(stopLoss, 'algoStatus')) ?? 'MISSING';
+    const takeProfitStatus = asString(sectionField(takeProfit, 'algoStatus')) ?? 'MISSING';
+    const emergencyCloseStatus = asString(sectionField(emergencyClose, 'status'))
+        ?? (asBoolean(emergencyClose.submitted) === false ? 'FAILED_TO_SUBMIT' : 'n/a');
+    const positionQty = sectionField(position, 'positionAmt') ?? reconciliation.positionQuantity;
+
     return (
         <div className="mt-5 rounded-xl border border-slate-700 bg-slate-950/60 p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -124,11 +195,11 @@ function ExecutionCard({ execution }: { execution: LiveTradeExecutionDTO }) {
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-                    <p className="text-xs uppercase tracking-wider text-slate-400">Binance Order IDs</p>
+                    <p className="text-xs uppercase tracking-wider text-slate-400">Exchange Reference IDs</p>
                     <div className="mt-2 space-y-1 text-sm text-slate-200">
                         <p>Entry: {formatMaybe(execution.orderRefs.entryOrderId)}</p>
-                        <p>Stop Loss: {formatMaybe(execution.orderRefs.slOrderId)}</p>
-                        <p>Take Profit: {formatMaybe(execution.orderRefs.tpOrderId)}</p>
+                        <p>Stop Loss Algo: {formatMaybe(execution.orderRefs.slOrderId)}</p>
+                        <p>Take Profit Algo: {formatMaybe(execution.orderRefs.tpOrderId)}</p>
                         <p>Emergency Close: {formatMaybe(execution.orderRefs.emergencyCloseOrderId)}</p>
                     </div>
                 </div>
@@ -143,10 +214,62 @@ function ExecutionCard({ execution }: { execution: LiveTradeExecutionDTO }) {
                 </div>
             </div>
 
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+                <ExecutionStatusPanel
+                    label="Entry"
+                    title={entryResolvedState}
+                    description={`Order=${entryOrderStatus} | filled=${formatMaybe(entryFilledQty)} | avg=${formatMaybe(entryAvgPrice)}`}
+                />
+                <ExecutionStatusPanel
+                    label="Protection"
+                    title={execution.executionState === 'PROTECTION_ACTIVE' ? 'ACTIVE' : (failedLegs.length > 0 ? 'FAILED' : 'PENDING')}
+                    description={`SL=${stopLossStatus} | TP=${takeProfitStatus}${downsideProtected ? ' | downside protected' : ''}`}
+                />
+                <ExecutionStatusPanel
+                    label="Emergency Close"
+                    title={execution.executionState === 'EMERGENCY_CLOSE_FILLED' ? 'FILLED' : emergencyCloseStatus}
+                    description={`orderId=${formatMaybe(sectionField(emergencyClose, 'orderId'))} | qty=${formatMaybe(sectionField(emergencyClose, 'executedQty'))}`}
+                />
+                <ExecutionStatusPanel
+                    label="Reconciliation"
+                    title={execution.executionState === 'RECONCILING' || execution.executionState === 'PENDING_RECONCILE' ? 'IN PROGRESS' : 'LATEST'}
+                    description={`position=${formatMaybe(positionQty)} | hasPosition=${formatMaybe(hasPosition)}${emergencyCloseWorking != null ? ` | closeWorking=${String(emergencyCloseWorking).toUpperCase()}` : ''}`}
+                />
+            </div>
+
             {(execution.errorCode || execution.errorMessage) && (
                 <div className="mt-4 rounded-lg border border-rose-700/50 bg-rose-900/20 p-3 text-sm text-rose-200">
                     <p className="font-semibold">{execution.errorCode ?? 'EXECUTION_ERROR'}</p>
                     <p className="mt-1">{execution.errorMessage ?? 'Execution failed.'}</p>
+                </div>
+            )}
+
+            {(failedLegs.length > 0 || Object.keys(protectionFailure).length > 0) && (
+                <div className="mt-4 rounded-lg border border-amber-700/50 bg-amber-900/20 p-3 text-sm text-amber-100">
+                    <p className="font-semibold text-amber-200">Protection Status</p>
+                    <p className="mt-1">
+                        Failed legs: {failedLegs.length > 0 ? failedLegs.join(', ') : 'n/a'}
+                    </p>
+                    <p className="mt-1">
+                        Downside protected: {downsideProtected == null ? 'n/a' : (downsideProtected ? 'YES' : 'NO')}
+                    </p>
+                    <p className="mt-1">
+                        Reason: {asString(protectionFailure.errorMessage) ?? execution.errorMessage ?? 'n/a'}
+                    </p>
+                </div>
+            )}
+
+            {(Object.keys(reconciliation).length > 0 || Object.keys(position).length > 0) && (
+                <div className="mt-4 rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
+                    <p className="text-xs uppercase tracking-wider text-slate-400">Exchange Truth</p>
+                    <div className="mt-2 grid gap-2 md:grid-cols-2">
+                        <p>Position quantity: {formatMaybe(positionQty)}</p>
+                        <p>Entry price: {formatMaybe(sectionField(position, 'entryPrice'))}</p>
+                        <p>Stop-loss active: {formatMaybe(reconciliation.stopLossActive)}</p>
+                        <p>Take-profit active: {formatMaybe(reconciliation.takeProfitActive)}</p>
+                        <p>Emergency close filled: {formatMaybe(reconciliation.emergencyCloseFilled)}</p>
+                        <p>Protection triggered: {formatMaybe(reconciliation.protectionTriggered)}</p>
+                    </div>
                 </div>
             )}
 
@@ -425,17 +548,6 @@ export const RecommendationDetailPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {actionError && (
-                        <div className="mt-4">
-                            <Banner
-                                message={`${actionError.errorCode}: ${actionError.message}${actionError.traceId ? ` | traceId=${actionError.traceId}` : ''}`}
-                                onRetry={() => {
-                                    clearActionError();
-                                    void refreshExecution();
-                                }}
-                            />
-                        </div>
-                    )}
 
                     {(permissionsLoading || liveExecutionLoading) && (
                         <div className="mt-4 rounded-lg border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-300">
@@ -445,130 +557,49 @@ export const RecommendationDetailPage: React.FC = () => {
 
                     {preflight && (
                         <>
-                            <div className="mt-4 grid gap-3 md:grid-cols-4">
-                                <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-                                    <p className="text-xs uppercase tracking-wider text-slate-400">Capability</p>
-                                    <p className={`mt-2 text-sm font-semibold ${preflight.runtime.liveExecutionEnabled ? 'text-emerald-300' : 'text-rose-300'}`}>
-                                        {preflight.runtime.liveExecutionEnabled ? 'ENABLED' : 'DISABLED'}
-                                    </p>
-                                </div>
-                                <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-                                    <p className="text-xs uppercase tracking-wider text-slate-400">Last Checked</p>
-                                    <p className="mt-2 text-sm text-white">
-                                        <Clock3 size={14} className="mr-1 inline text-slate-500" />
-                                        {formatInstant(preflight.checkedAt)}
-                                    </p>
-                                </div>
-                                <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-                                    <p className="text-xs uppercase tracking-wider text-slate-400">Trading Gate</p>
-                                    <p className={`mt-2 text-sm font-semibold ${preflight.runtime.readOnly ? 'text-amber-300' : 'text-emerald-300'}`}>
-                                        {preflight.runtime.readOnly ? 'READ ONLY' : 'LIVE'}
-                                    </p>
-                                </div>
-                                <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-                                    <p className="text-xs uppercase tracking-wider text-slate-400">Local Request</p>
-                                    <p className={`mt-2 text-sm font-semibold ${preflight.localRequest.allowed ? 'text-emerald-300' : 'text-rose-300'}`}>
-                                        {preflight.localRequest.allowed ? 'LOCALHOST OK' : 'BLOCKED'}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="mt-4 grid gap-3 md:grid-cols-4">
-                                <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
-                                    <p className="text-xs uppercase tracking-wider text-slate-400">Preflight Summary</p>
-                                    <p className="mt-2">Executable: {preflight.executable ? 'YES' : 'NO'}</p>
-                                    <p>Capability: {preflight.runtime.liveExecutionEnabled ? 'ON' : 'OFF'}</p>
-                                    <p>Read Only: {preflight.runtime.readOnly ? 'YES' : 'NO'}</p>
-                                    <p>Duplicate active execution: {preflight.runtime.duplicateSubmitBlocked ? 'YES' : 'NO'}</p>
-                                    <p>Recommendation stale: {preflight.runtime.recommendationStale ? 'YES' : 'NO'}</p>
-                                    <p>Blocked reasons: {preflight.blockedReasons.length}</p>
-                                </div>
-                                <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
-                                    <p className="text-xs uppercase tracking-wider text-slate-400">Binance Diagnostics</p>
-                                    <p className="mt-2">Auth: {statusText(preflight.binance.authValid, 'VALID', 'INVALID')}</p>
-                                    <p>Futures order read: {statusText(preflight.binance.futuresOrderReadOk)}</p>
-                                    <p>Position mode read: {statusText(preflight.binance.positionModeReadOk)}</p>
-                                    <p>Endpoint family: {formatMaybe(preflight.binance.endpointFamily)}</p>
-                                    <p>Primary blocker: {preflight.binance.blockerCode ?? 'n/a'}</p>
-                                </div>
-                                <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
-                                    <p className="text-xs uppercase tracking-wider text-slate-400">Binance Policy</p>
-                                    <p className="mt-2">Futures permission: {statusText(preflight.binance.futuresPermissionOk)}</p>
-                                    <p>IP allowlist: {statusText(preflight.binance.ipAllowlistOk)}</p>
-                                    <p>Timestamp: {statusText(preflight.binance.timestampOk)}</p>
-                                    <p>Signing: {statusText(preflight.binance.signingOk)}</p>
-                                    <p>Request IP hint: {preflight.binance.requestIpHint ?? 'n/a'}</p>
-                                </div>
-                                <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
-                                    <p className="text-xs uppercase tracking-wider text-slate-400">Exchange Preview</p>
-                                    <p className="mt-2">Mark: {formatMaybe(preflight.exchangeValidation.markPrice)}</p>
-                                    <p>Tick: {formatMaybe(preflight.exchangeValidation.tickSize)}</p>
-                                    <p>Step: {formatMaybe(preflight.exchangeValidation.stepSize)}</p>
-                                    <p>Notional: {formatMaybe(preflight.exchangeValidation.entryNotionalUsdt)}</p>
-                                </div>
-                            </div>
-
-                            <div className="mt-4 grid gap-3 md:grid-cols-3">
-                                <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
-                                    <p className="text-xs uppercase tracking-wider text-slate-400">Placeability</p>
-                                    <p className="mt-2">Status: {statusText(preflight.placeabilityOk, 'PASS', 'BLOCKED')}</p>
-                                    <p>Reason: {preflight.placeability?.reasonText ?? 'n/a'}</p>
-                                </div>
-                                <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
-                                    <p className="text-xs uppercase tracking-wider text-slate-400">Protection Preview</p>
-                                    <p className="mt-2">SL: {formatMaybe(preflight.exchangeValidation.slStopPrice)}</p>
-                                    <p>TP: {formatMaybe(preflight.exchangeValidation.tpStopPrice)}</p>
-                                    <p>Margin: {formatMaybe(preflight.exchangeValidation.marginMode)}</p>
-                                    <p>Position: {formatMaybe(preflight.exchangeValidation.positionMode)}</p>
-                                </div>
-                                <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
-                                    <p className="text-xs uppercase tracking-wider text-slate-400">Timestamp / Locality</p>
-                                    <p className="mt-2">Skew: {formatMaybe(preflight.binance.timestampSkewMs)}</p>
-                                    <p>RecvWindow: {formatMaybe(preflight.binance.recvWindowMs)}</p>
-                                    <p>Origin: {preflight.localRequest.origin ?? 'n/a'}</p>
-                                    <p>Remote: {preflight.localRequest.remoteAddress ?? 'n/a'}</p>
-                                    <p>Local failure: {preflight.localRequest.failureReason ?? 'n/a'}</p>
-                                </div>
-                            </div>
-
-                            {preflight.binance.blockerMessage && (
-                                <div className="mt-4 rounded-lg border border-sky-700/50 bg-sky-900/20 p-4 text-sm text-sky-100">
-                                    <p className="font-semibold text-sky-200">Primary Binance Diagnostic</p>
-                                    <p className="mt-2 font-mono text-xs text-sky-300">{preflight.binance.blockerCode ?? 'BINANCE'}</p>
-                                    <p className="mt-1">{preflight.binance.blockerMessage}</p>
-                                </div>
-                            )}
-
-                            {preflight.exchangeValidation.failures.length > 0 && (
-                                <div className="mt-4 rounded-lg border border-rose-700/50 bg-rose-900/20 p-4 text-sm text-rose-100">
-                                    <p className="font-semibold text-rose-200">Exchange Filter Failures</p>
-                                    <div className="mt-2 space-y-1">
-                                        {preflight.exchangeValidation.failures.map((failure) => (
-                                            <p key={failure}>{failure}</p>
-                                        ))}
+                            <div className="mt-4 rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                    <div>
+                                        <p className="text-xs uppercase tracking-wider text-slate-400">Connection</p>
+                                        <p className={`mt-1 text-sm font-semibold ${preflight.summary.connectionStatus === 'CONNECTED'
+                                            ? 'text-emerald-300'
+                                            : preflight.summary.connectionStatus === 'NOT_CONNECTED'
+                                                ? 'text-rose-300'
+                                                : 'text-slate-300'
+                                            }`}>
+                                            {preflight.summary.connectionStatus === 'CONNECTED'
+                                                ? 'Connected'
+                                                : preflight.summary.connectionStatus === 'NOT_CONNECTED'
+                                                    ? 'Not connected'
+                                                    : 'Unknown'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs uppercase tracking-wider text-slate-400">Can place order</p>
+                                        <p className={`mt-1 text-sm font-semibold ${preflight.summary.executableNow ? 'text-emerald-300' : 'text-amber-300'}`}>
+                                            {preflight.summary.executableNow ? 'Yes' : 'No'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs uppercase tracking-wider text-slate-400">Status</p>
+                                        <p className="mt-1 text-sm text-slate-200">
+                                            {preflight.summary.executableNow
+                                                ? 'You can place this order now.'
+                                                : (preflight.summary.primaryBlockerMessage ?? 'Preflight check failed.')}
+                                        </p>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
-                            {preflight.blockedReasons.length > 0 && (
-                                <div className="mt-4 rounded-lg border border-amber-700/50 bg-amber-900/20 p-4 text-sm text-amber-100">
-                                    <div className="flex items-start gap-3">
-                                        <CircleSlash className="mt-0.5 shrink-0 text-amber-300" size={18} />
-                                        <div>
-                                            <p className="font-semibold text-amber-200">Blocked Reasons</p>
-                                            <div className="mt-2 space-y-2">
-                                                {preflight.blockedReasons.map((reason) => (
-                                                    <div key={`${reason.code}-${reason.message}`}>
-                                                        <p className="font-mono text-xs text-amber-300">{reason.code}</p>
-                                                        {reason.source && (
-                                                            <p className="text-[11px] uppercase tracking-wider text-amber-400/80">{reason.source}</p>
-                                                        )}
-                                                        <p>{reason.message}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
+                            {actionError && (
+                                <div className="mt-4">
+                                    <Banner
+                                        message={`${actionError.errorCode}: ${actionError.message}${actionError.traceId ? ` | traceId=${actionError.traceId}` : ''}`}
+                                        onRetry={() => {
+                                            clearActionError();
+                                            void refreshExecution();
+                                        }}
+                                    />
                                 </div>
                             )}
 
@@ -587,7 +618,7 @@ export const RecommendationDetailPage: React.FC = () => {
                                     className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
                                 >
                                     <RefreshCw size={14} />
-                                    Refresh Live Status
+                                    Refresh status
                                 </button>
                             </div>
 
@@ -596,6 +627,157 @@ export const RecommendationDetailPage: React.FC = () => {
                                     Execute button disabled: {buttonDisabledReason}
                                 </p>
                             )}
+
+                            <details className="mt-6 group">
+                                <summary className="cursor-pointer select-none text-xs uppercase tracking-wider text-slate-500 hover:text-slate-300">
+                                    Advanced diagnostics
+                                </summary>
+                                <div className="mt-3 space-y-3">
+                                    <div className="grid gap-3 md:grid-cols-4">
+                                        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                                            <p className="text-xs uppercase tracking-wider text-slate-400">Capability</p>
+                                            <p className={`mt-2 text-sm font-semibold ${preflight.runtime.liveExecutionEnabled ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                                {preflight.runtime.liveExecutionEnabled ? 'ENABLED' : 'DISABLED'}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                                            <p className="text-xs uppercase tracking-wider text-slate-400">Last Checked</p>
+                                            <p className="mt-2 text-sm text-white">
+                                                <Clock3 size={14} className="mr-1 inline text-slate-500" />
+                                                {formatInstant(preflight.checkedAt)}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                                            <p className="text-xs uppercase tracking-wider text-slate-400">Trading Gate</p>
+                                            <p className={`mt-2 text-sm font-semibold ${preflight.runtime.readOnly ? 'text-amber-300' : 'text-emerald-300'}`}>
+                                                {preflight.runtime.readOnly ? 'READ ONLY' : 'LIVE'}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                                            <p className="text-xs uppercase tracking-wider text-slate-400">Local Request</p>
+                                            <p className={`mt-2 text-sm font-semibold ${preflight.localRequest.allowed ? 'text-emerald-300' : 'text-rose-300'}`}>
+                                                {preflight.localRequest.allowed ? 'LOCALHOST OK' : 'BLOCKED'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-3 md:grid-cols-4">
+                                        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
+                                            <p className="text-xs uppercase tracking-wider text-slate-400">Preflight Summary</p>
+                                            <p className="mt-2">Executable: {preflight.executable ? 'YES' : 'NO'}</p>
+                                            <p>Capability: {preflight.runtime.liveExecutionEnabled ? 'ON' : 'OFF'}</p>
+                                            <p>Read Only: {preflight.runtime.readOnly ? 'YES' : 'NO'}</p>
+                                            <p>Duplicate active: {preflight.runtime.duplicateSubmitBlocked ? 'YES' : 'NO'}</p>
+                                            <p>Recommendation stale: {preflight.runtime.recommendationStale ? 'YES' : 'NO'}</p>
+                                            <p>Blocked reasons: {preflight.blockedReasons.length}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
+                                            <p className="text-xs uppercase tracking-wider text-slate-400">Binance Diagnostics</p>
+                                            <p className="mt-2">Auth: {statusText(preflight.binance.authValid, 'VALID', 'INVALID')}</p>
+                                            <p>Credential source: {preflight.binance.credentialSource ?? 'n/a'}</p>
+                                            <p>Auth mode: {preflight.binance.authMode ?? 'n/a'}</p>
+                                            <p>Account info read: {statusText(preflight.binance.accountInfoReadOk)}</p>
+                                            <p>Account config read: {statusText(preflight.binance.accountConfigReadOk)}</p>
+                                            <p>Endpoint family: {formatMaybe(preflight.binance.endpointFamily)}</p>
+                                            <p>Primary blocker: {preflight.binance.blockerCode ?? 'n/a'}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
+                                            <p className="text-xs uppercase tracking-wider text-slate-400">Binance Policy</p>
+                                            <p className="mt-2">Futures permission: {statusText(preflight.binance.futuresPermissionOk)}</p>
+                                            <p>IP allowlist: {statusText(preflight.binance.ipAllowlistOk)}</p>
+                                            <p>Timestamp: {statusText(preflight.binance.timestampOk)}</p>
+                                            <p>Signing: {statusText(preflight.binance.signingOk)}</p>
+                                            <p>Request IP hint: {preflight.binance.requestIpHint ?? 'n/a'}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
+                                            <p className="text-xs uppercase tracking-wider text-slate-400">Exchange Preview</p>
+                                            <p className="mt-2">Mark: {formatMaybe(preflight.exchangeValidation.markPrice)}</p>
+                                            <p>Tick: {formatMaybe(preflight.exchangeValidation.tickSize)}</p>
+                                            <p>Step: {formatMaybe(preflight.exchangeValidation.stepSize)}</p>
+                                            <p>Notional: {formatMaybe(preflight.exchangeValidation.entryNotionalUsdt)}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-3 md:grid-cols-3">
+                                        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
+                                            <p className="text-xs uppercase tracking-wider text-slate-400">Placeability</p>
+                                            <p className="mt-2">Status: {statusText(preflight.placeabilityOk, 'PASS', 'BLOCKED')}</p>
+                                            <p>Reason: {preflight.placeability?.reasonText ?? 'n/a'}</p>
+                                            {!preflight.placeabilityOk && preflight.placeability?.liveRrToTp1 != null && (
+                                                <p className="mt-1 text-amber-300">
+                                                    Live RR: {Number(preflight.placeability.liveRrToTp1).toFixed(2)}
+                                                    {preflight.placeability.minRrRequired != null && (
+                                                        <span className="text-slate-400"> (min: {Number(preflight.placeability.minRrRequired).toFixed(2)})</span>
+                                                    )}
+                                                </p>
+                                            )}
+                                            {!preflight.placeabilityOk && preflight.placeability?.violations && preflight.placeability.violations.length > 0 && (
+                                                <div className="mt-1 space-y-0.5">
+                                                    {preflight.placeability.violations.map((v: string) => (
+                                                        <p key={v} className="text-xs text-rose-300">{v}</p>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
+                                            <p className="text-xs uppercase tracking-wider text-slate-400">Protection Preview</p>
+                                            <p className="mt-2">SL: {formatMaybe(preflight.exchangeValidation.slStopPrice)}</p>
+                                            <p>TP: {formatMaybe(preflight.exchangeValidation.tpStopPrice)}</p>
+                                            <p>Margin: {formatMaybe(preflight.exchangeValidation.marginMode)}</p>
+                                            <p>Position: {formatMaybe(preflight.exchangeValidation.positionMode)}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
+                                            <p className="text-xs uppercase tracking-wider text-slate-400">Timestamp / Locality</p>
+                                            <p className="mt-2">Skew: {formatMaybe(preflight.binance.timestampSkewMs)}</p>
+                                            <p>RecvWindow: {formatMaybe(preflight.binance.recvWindowMs)}</p>
+                                            <p>Origin: {preflight.localRequest.origin ?? 'n/a'}</p>
+                                            <p>Remote: {preflight.localRequest.remoteAddress ?? 'n/a'}</p>
+                                            <p>Local failure: {preflight.localRequest.failureReason ?? 'n/a'}</p>
+                                        </div>
+                                    </div>
+
+                                    {preflight.binance.blockerMessage && (
+                                        <div className="rounded-lg border border-sky-700/50 bg-sky-900/20 p-4 text-sm text-sky-100">
+                                            <p className="font-semibold text-sky-200">Primary Binance Diagnostic</p>
+                                            <p className="mt-2 font-mono text-xs text-sky-300">{preflight.binance.blockerCode ?? 'BINANCE'}</p>
+                                            <p className="mt-1">{preflight.binance.blockerMessage}</p>
+                                        </div>
+                                    )}
+
+                                    {preflight.exchangeValidation.failures.length > 0 && (
+                                        <div className="rounded-lg border border-rose-700/50 bg-rose-900/20 p-4 text-sm text-rose-100">
+                                            <p className="font-semibold text-rose-200">Exchange Filter Failures</p>
+                                            <div className="mt-2 space-y-1">
+                                                {preflight.exchangeValidation.failures.map((failure) => (
+                                                    <p key={failure}>{failure}</p>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {preflight.blockedReasons.length > 0 && (
+                                        <div className="rounded-lg border border-amber-700/50 bg-amber-900/20 p-4 text-sm text-amber-100">
+                                            <div className="flex items-start gap-3">
+                                                <CircleSlash className="mt-0.5 shrink-0 text-amber-300" size={18} />
+                                                <div>
+                                                    <p className="font-semibold text-amber-200">All Blocked Reasons</p>
+                                                    <div className="mt-2 space-y-2">
+                                                        {preflight.blockedReasons.map((reason) => (
+                                                            <div key={`${reason.code}-${reason.message}`}>
+                                                                <p className="font-mono text-xs text-amber-300">{reason.code}</p>
+                                                                {reason.source && (
+                                                                    <p className="text-[11px] uppercase tracking-wider text-amber-400/80">{reason.source}</p>
+                                                                )}
+                                                                <p>{reason.message}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </details>
 
                             {execution && <ExecutionCard execution={execution} />}
 
@@ -627,6 +809,7 @@ export const RecommendationDetailPage: React.FC = () => {
                             )}
                         </>
                     )}
+
                 </div>
 
                 {saved && (

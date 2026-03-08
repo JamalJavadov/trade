@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.DemoPlaceabilityPreflightTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:23" hostname="CamaltekiMacBook-Pro.local" time="0.001">
+  <properties/>
+  <testcase name="longStrictInequalityRequiresTickGap()" classname="com.tradebot.DemoPlaceabilityPreflightTest" time="0.0"/>
+  <testcase name="shortStrictInequalityRequiresTickGap()" classname="com.tradebot.DemoPlaceabilityPreflightTest" time="0.001"/>
+  <testcase name="rrLiveUsesLiveMarkAsEntryReference()" classname="com.tradebot.DemoPlaceabilityPreflightTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

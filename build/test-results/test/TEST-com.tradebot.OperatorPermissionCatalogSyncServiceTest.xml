@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.OperatorPermissionCatalogSyncServiceTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:24" hostname="CamaltekiMacBook-Pro.local" time="0.025">
+  <properties/>
+  <testcase name="syncCatalogDoesNotOverwriteExistingRows()" classname="com.tradebot.OperatorPermissionCatalogSyncServiceTest" time="0.024"/>
+  <testcase name="syncCatalogInsertsMissingKeysWithEnabledTrue()" classname="com.tradebot.OperatorPermissionCatalogSyncServiceTest" time="0.0"/>
+  <system-out><![CDATA[2026-03-08T15:34:24.304+04:00  INFO 98901 --- [    Test worker] t.o.OperatorPermissionCatalogSyncService : Operator permissions bootstrap complete: insertedMissing=0, existing=17
+2026-03-08T15:34:24.305+04:00  INFO 98901 --- [    Test worker] t.o.OperatorPermissionCatalogSyncService : Operator permissions bootstrap complete: insertedMissing=17, existing=0
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

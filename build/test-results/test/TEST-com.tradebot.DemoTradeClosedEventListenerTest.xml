@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.DemoTradeClosedEventListenerTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:23" hostname="CamaltekiMacBook-Pro.local" time="0.024">
+  <properties/>
+  <testcase name="listenerSwallowsAiErrorsSoLifecycleCannotBreak()" classname="com.tradebot.DemoTradeClosedEventListenerTest" time="0.024"/>
+  <system-out><![CDATA[2026-03-08T15:34:23.524+04:00  WARN 98901 --- [    Test worker] c.t.d.s.DemoTradeClosedEventListener     : Failed to evaluate demo AI trigger after trade close 80fe82ee-8cfb-4575-a222-df5f9db7f557: router failed
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

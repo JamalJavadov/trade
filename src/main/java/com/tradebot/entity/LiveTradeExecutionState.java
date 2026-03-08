@@ -9,12 +9,18 @@ public enum LiveTradeExecutionState {
     DRY_RUN,
     SUBMITTING,
     ENTRY_SUBMITTED,
+    ENTRY_PARTIALLY_FILLED,
+    ENTRY_FILLED,
+    PROTECTION_SUBMITTING,
     PROTECTION_SUBMITTED,
+    PROTECTION_ACTIVE,
     OPEN,
+    RECONCILING,
     PENDING_RECONCILE,
     RECONCILED,
     PROTECTION_FAILED,
     EMERGENCY_CLOSE_SUBMITTED,
+    EMERGENCY_CLOSE_FILLED,
     EMERGENCY_CLOSE_FAILED,
     FAILED;
 
@@ -22,9 +28,15 @@ public enum LiveTradeExecutionState {
             REQUESTED,
             SUBMITTING,
             ENTRY_SUBMITTED,
+            ENTRY_PARTIALLY_FILLED,
+            ENTRY_FILLED,
+            PROTECTION_SUBMITTING,
             PROTECTION_SUBMITTED,
+            PROTECTION_ACTIVE,
             OPEN,
+            RECONCILING,
             PENDING_RECONCILE,
+            PROTECTION_FAILED,
             EMERGENCY_CLOSE_SUBMITTED);
 
     public boolean isActive() {

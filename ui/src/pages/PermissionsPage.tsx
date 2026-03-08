@@ -7,6 +7,7 @@ import { getErrorExplanation } from '../utils/errorMap';
 import { normalizeControlCenterConfig, type ControlCenterConfig, type ControlCenterTaskRouting } from '../api/controlCenterApi';
 import { getAutoScanState, type AutoScanStateResponse } from '../api/autoscanApi';
 import { runScanOnce } from '../api/client';
+import { BinanceCredentialsCard } from '../components/settings/BinanceCredentialsCard';
 
 interface UiError {
     errorCode: string;
@@ -575,6 +576,8 @@ export function PermissionsPage() {
                     ))}
                 </div>
             </SectionCard>
+
+            <BinanceCredentialsCard />
 
             <SectionCard
                 title="Scan Settings"

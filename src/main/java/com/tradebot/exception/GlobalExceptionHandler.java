@@ -2,6 +2,7 @@ package com.tradebot.exception;
 
 import com.tradebot.operator.ForbiddenPermissionException;
 import com.tradebot.security.ForbiddenNotLocalException;
+import com.tradebot.service.BinanceCredentialException;
 import com.tradebot.service.BinanceErrorClassifier;
 import com.tradebot.service.BinanceErrorClassifier.BinanceErrorDetails;
 import com.tradebot.service.LiveTradingBlockerCodes;
@@ -78,6 +79,29 @@ public class GlobalExceptionHandler {
         log.warn("[TraceID: {}] IllegalArgumentException at {}: {}", traceId, request.getRequestURI(), ex.getMessage());
         return buildError(request, HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION,
                 ex.getMessage(), detailsWithRootMessage(ex.getMessage()), traceId);
+    }
+
+    @ExceptionHandler(BinanceCredentialException.class)
+    public ResponseEntity<ApiErrorResponse> handleBinanceCredentialException(BinanceCredentialException ex,
+            HttpServletRequest request) {
+        String traceId = traceId(request);
+        log.warn("[TraceID: {}] BinanceCredentialException at {}: failureCode={} source={} authMode={}",
+                traceId,
+                request.getRequestURI(),
+                ex.getFailureCode(),
+                ex.getCredentialSource(),
+                ex.getAuthMode());
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("credentialSource", ex.getCredentialSource());
+        details.put("authMode", ex.getAuthMode());
+        details.put("rootMessage", ex.getMessage());
+        return buildError(
+                request,
+                HttpStatus.BAD_REQUEST,
+                mapCredentialFailure(ex.getFailureCode()),
+                ex.getMessage(),
+                details,
+                traceId);
     }
 
     @ExceptionHandler(ForbiddenPermissionException.class)
@@ -386,6 +410,23 @@ public class GlobalExceptionHandler {
             return HttpStatus.SERVICE_UNAVAILABLE;
         }
         return resolved;
+    }
+
+    private ErrorCode mapCredentialFailure(String failureCode) {
+        if (failureCode == null) {
+            return ErrorCode.BINANCE_AUTH_INVALID;
+        }
+        return switch (failureCode) {
+            case LiveTradingBlockerCodes.CREDENTIAL_DECRYPT_FAILED -> ErrorCode.CREDENTIAL_DECRYPT_FAILED;
+            case LiveTradingBlockerCodes.CREDENTIAL_RECORD_CORRUPT -> ErrorCode.CREDENTIAL_RECORD_CORRUPT;
+            case LiveTradingBlockerCodes.CREDENTIAL_AUTH_MODE_UNKNOWN -> ErrorCode.CREDENTIAL_AUTH_MODE_UNKNOWN;
+            case LiveTradingBlockerCodes.CREDENTIAL_SOURCE_MISMATCH -> ErrorCode.CREDENTIAL_SOURCE_MISMATCH;
+            case LiveTradingBlockerCodes.USER_CONFIGURATION_MISMATCH -> ErrorCode.USER_CONFIGURATION_MISMATCH;
+            case LiveTradingBlockerCodes.PLACEHOLDER_CREDENTIALS_DETECTED -> ErrorCode.PLACEHOLDER_CREDENTIALS_DETECTED;
+            case LiveTradingBlockerCodes.BINANCE_SIGNING_FAILED -> ErrorCode.BINANCE_SIGNING_FAILED;
+            case LiveTradingBlockerCodes.BINANCE_AUTH_INVALID -> ErrorCode.BINANCE_AUTH_INVALID;
+            default -> ErrorCode.BINANCE_AUTH_INVALID;
+        };
     }
 
     private Map<String, Object> detailsWithRootMessage(String message) {

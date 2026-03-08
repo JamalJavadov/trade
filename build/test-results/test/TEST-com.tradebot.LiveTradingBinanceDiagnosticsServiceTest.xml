@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.LiveTradingBinanceDiagnosticsServiceTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:23" hostname="CamaltekiMacBook-Pro.local" time="0.026">
+  <properties/>
+  <testcase name="evaluateUsesSharedFuturesOnlyVerifier()" classname="com.tradebot.LiveTradingBinanceDiagnosticsServiceTest" time="0.026"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -9,7 +9,7 @@ export const ErrorExplainMap: Record<string, { why: string; fix: string }> = {
     },
     'BINANCE_AUTH_INVALID': {
         why: 'Signed Binance authentication failed.',
-        fix: 'Check the live Binance API key/secret pair and confirm the backend host/IP is the one Binance expects.',
+        fix: 'Check the selected Binance API key, matching secret/private key, Futures permission, and any Binance IP restrictions.',
     },
     'BINANCE_IP_NOT_ALLOWED': {
         why: 'Binance rejected the backend host IP for signed requests.',
@@ -24,8 +24,32 @@ export const ErrorExplainMap: Record<string, { why: string; fix: string }> = {
         fix: 'Correct the workstation/server time and retry after NTP or system clock sync.',
     },
     'BINANCE_SIGNING_FAILED': {
-        why: 'The backend generated an invalid Binance request signature.',
-        fix: 'Verify the configured secret matches the key and that the backend is using the intended Binance credentials.',
+        why: 'The backend could not complete a valid Binance signature for the selected credential type.',
+        fix: 'Verify the saved secret or private key matches the selected auth mode and re-save the credentials if needed.',
+    },
+    'CREDENTIAL_DECRYPT_FAILED': {
+        why: 'A saved Binance credential record exists, but the backend can no longer read it.',
+        fix: 'Re-save the Binance credentials in Control Center to repair the local record.',
+    },
+    'CREDENTIAL_RECORD_CORRUPT': {
+        why: 'The saved Binance credential record is incomplete or internally inconsistent.',
+        fix: 'Re-save the Binance credentials in Control Center so the API key and secret/private key match the selected auth mode.',
+    },
+    'CREDENTIAL_AUTH_MODE_UNKNOWN': {
+        why: 'The saved Binance credential auth mode is invalid or missing.',
+        fix: 'Update the Binance credentials in Control Center and select the correct auth mode before saving.',
+    },
+    'CREDENTIAL_SOURCE_MISMATCH': {
+        why: 'The unsaved test payload does not match the active saved auth mode.',
+        fix: 'Either test the saved record as-is or re-enter the full credential set for the selected auth mode.',
+    },
+    'USER_CONFIGURATION_MISMATCH': {
+        why: 'The saved asymmetric Binance private key is malformed or does not match a supported Binance key type.',
+        fix: 'Re-save the Binance credentials with the matching PKCS#8 RSA or Ed25519 private key registered on Binance.',
+    },
+    'PLACEHOLDER_CREDENTIALS_DETECTED': {
+        why: 'The configured Binance values look like placeholder or demo credentials.',
+        fix: 'Replace them with the real local Binance API key and matching secret/private key before testing again.',
     },
     'BINANCE_ENDPOINT_MISCONFIGURED': {
         why: 'The backend is calling the wrong Binance endpoint family or path.',

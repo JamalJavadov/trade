@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.SuggestionBatchServiceTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:25" hostname="CamaltekiMacBook-Pro.local" time="0.059">
+  <properties/>
+  <testcase name="acceptBatchRejectsLockedKeyAndDoesNotPersistNewConfigVersion()" classname="com.tradebot.SuggestionBatchServiceTest" time="0.052"/>
+  <testcase name="primaryFailsThenFallbackSucceeds_persistsProposedBatchWithMeta()" classname="com.tradebot.SuggestionBatchServiceTest" time="0.005"/>
+  <testcase name="invalidJsonClassifiedAsBadJsonAndPersistsFailedRecords()" classname="com.tradebot.SuggestionBatchServiceTest" time="0.002"/>
+  <system-out><![CDATA[2026-03-08T15:34:25.373+04:00  INFO 98901 --- [    Test worker] c.t.service.SuggestionBatchService       : 10 trades milestone reached. Generating AI Suggestion Batch...
+2026-03-08T15:34:25.377+04:00  INFO 98901 --- [    Test worker] c.t.service.SuggestionBatchService       : AI Suggestion Batch generated successfully. traceId=trace-fallback model=fallback-model
+2026-03-08T15:34:25.378+04:00  INFO 98901 --- [    Test worker] c.t.service.SuggestionBatchService       : 10 trades milestone reached. Generating AI Suggestion Batch...
+2026-03-08T15:34:25.379+04:00  WARN 98901 --- [    Test worker] c.t.service.SuggestionBatchService       : AI Suggestion Batch failed with OPENROUTER_BAD_JSON traceId=trace-bad-json: OpenRouter returned invalid JSON payload
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -22,22 +22,33 @@ public class LiveTradingBinanceDiagnosticsService {
     private static final String DEFAULT_PROBE_SYMBOL = "BTCUSDT";
 
     private final BinanceClient binanceClient;
+    private final BinanceCredentialService credentialService;
 
     public LiveTradingPreflightDTO.Binance evaluate(String symbol) {
-        LiveTradingPreflightDTO.Binance diagnostics = new LiveTradingPreflightDTO.Binance();
-        diagnostics.setCredentialsPresent(binanceClient.hasTradingCredentials());
-        diagnostics.setEndpointFamily("BINANCE_FUTURES");
-        diagnostics.setBaseUrl(binanceClient.getFuturesBaseUrl());
-        diagnostics.setSpotBaseUrl(binanceClient.getSpotBaseUrl());
-        diagnostics.setRecvWindowMs(binanceClient.getSignedRecvWindowMs());
-        diagnostics.setLocalTimestampMs(System.currentTimeMillis());
-        diagnostics.setAuthValid(Boolean.FALSE);
+        BinanceCredentialService.CredentialStatusSnapshot credentialStatus = credentialService.inspectActiveCredential();
+        if (BinanceCredentialService.STATUS_BROKEN.equals(credentialStatus.status())) {
+            LiveTradingPreflightDTO.Binance diagnostics = baseDiagnostics(
+                    true,
+                    credentialStatus.credentialSource(),
+                    credentialStatus.authMode());
+            probeServerTime(diagnostics);
+            diagnostics.setBlockerCode(credentialStatus.failureCode());
+            diagnostics.setBlockerMessage(credentialStatus.failureMessage());
+            diagnostics.setSigningOk(Boolean.FALSE);
+            diagnostics.setTimestampOk(null);
+            diagnostics.setFuturesPermissionOk(Boolean.FALSE);
+            diagnostics.setIpAllowlistOk(null);
+            return diagnostics;
+        }
 
-        probeServerTime(diagnostics);
-
-        if (!diagnostics.isCredentialsPresent()) {
+        if (BinanceCredentialService.STATUS_NOT_CONFIGURED.equals(credentialStatus.status())) {
+            LiveTradingPreflightDTO.Binance diagnostics = baseDiagnostics(
+                    false,
+                    credentialStatus.credentialSource(),
+                    credentialStatus.authMode());
+            probeServerTime(diagnostics);
             diagnostics.setBlockerCode(LiveTradingBlockerCodes.BINANCE_AUTH_INVALID);
-            diagnostics.setBlockerMessage("Binance API key/secret are missing.");
+            diagnostics.setBlockerMessage("Binance credentials are missing.");
             diagnostics.setSigningOk(Boolean.FALSE);
             diagnostics.setTimestampOk(Boolean.FALSE);
             diagnostics.setFuturesPermissionOk(Boolean.FALSE);
@@ -45,48 +56,87 @@ public class LiveTradingBinanceDiagnosticsService {
             return diagnostics;
         }
 
-        String probeSymbol = normalizeSymbol(symbol);
-        LiveTradingPreflightDTO.ProbeResult futuresOrderProbe = probe(
-                "futuresOrderRead",
-                "GET",
-                "/fapi/v1/allOrders",
-                binanceClient.getFuturesBaseUrl(),
-                () -> binanceClient.getRecentFuturesOrders(probeSymbol, 1));
-        diagnostics.getEndpointResults().add(futuresOrderProbe);
-        diagnostics.setFuturesOrderReadOk(futuresOrderProbe.isSuccess());
+        return evaluateResolvedCredential(credentialService.resolveActiveCredential(), symbol);
+    }
 
-        if (!futuresOrderProbe.isSuccess()) {
-            applyPrimaryProbeFailure(diagnostics, futuresOrderProbe, true);
+    public LiveTradingPreflightDTO.Binance evaluateResolvedCredential(BinanceCredentialService.ResolvedCredential resolved,
+            String symbol) {
+        LiveTradingPreflightDTO.Binance diagnostics = baseDiagnostics(true, resolved.source(), resolved.authMode());
+        probeServerTime(diagnostics);
+
+        LiveTradingPreflightDTO.ProbeResult accountProbe = probe(
+                "futuresAccountRead",
+                "GET",
+                "/fapi/v2/account",
+                binanceClient.getFuturesBaseUrl(),
+                () -> binanceClient.verifyFuturesAccount(
+                        resolved.apiKey(),
+                        resolved.privateKeyOrSecret(),
+                        resolved.authMode(),
+                        resolved.source()));
+        diagnostics.getEndpointResults().add(accountProbe);
+        diagnostics.setAccountInfoReadOk(accountProbe.isSuccess());
+
+        if (!accountProbe.isSuccess()) {
+            applyPrimaryProbeFailure(diagnostics, accountProbe);
         }
 
-        LiveTradingPreflightDTO.ProbeResult positionModeProbe = probe(
-                "positionModeRead",
+        LiveTradingPreflightDTO.ProbeResult accountConfigProbe = probe(
+                "futuresAccountConfigRead",
                 "GET",
-                "/fapi/v1/positionSide/dual",
+                "/fapi/v1/accountConfig",
                 binanceClient.getFuturesBaseUrl(),
-                binanceClient::getDualSidePositionMode);
-        diagnostics.getEndpointResults().add(positionModeProbe);
-        diagnostics.setPositionModeReadOk(positionModeProbe.isSuccess());
+                () -> binanceClient.verifyFuturesAccountConfig(
+                        resolved.apiKey(),
+                        resolved.privateKeyOrSecret(),
+                        resolved.authMode(),
+                        resolved.source()));
+        diagnostics.getEndpointResults().add(accountConfigProbe);
+        diagnostics.setAccountConfigReadOk(accountConfigProbe.isSuccess());
 
-        if (!positionModeProbe.isSuccess()) {
-            applyPrimaryProbeFailure(diagnostics, positionModeProbe, false);
+        if (!accountConfigProbe.isSuccess()) {
+            applyPrimaryProbeFailure(diagnostics, accountConfigProbe);
         }
 
-        boolean authValid = Boolean.TRUE.equals(diagnostics.getFuturesOrderReadOk())
-                && Boolean.TRUE.equals(diagnostics.getPositionModeReadOk());
+        boolean authValid = Boolean.TRUE.equals(diagnostics.getAccountInfoReadOk())
+                && Boolean.TRUE.equals(diagnostics.getAccountConfigReadOk());
         diagnostics.setAuthValid(authValid);
+
         if (authValid) {
             diagnostics.setIpAllowlistOk(Boolean.TRUE);
-            diagnostics.setFuturesPermissionOk(Boolean.TRUE);
             diagnostics.setTimestampOk(Boolean.TRUE);
             diagnostics.setSigningOk(Boolean.TRUE);
-            diagnostics.setBlockerCode(null);
-            diagnostics.setBlockerMessage(null);
+
+            Boolean canTrade = extractCanTrade(accountProbe);
+            if (Boolean.FALSE.equals(canTrade)) {
+                diagnostics.setAuthValid(Boolean.FALSE);
+                diagnostics.setFuturesPermissionOk(Boolean.FALSE);
+                diagnostics.setBlockerCode(LiveTradingBlockerCodes.BINANCE_FUTURES_PERMISSION_MISSING);
+                diagnostics.setBlockerMessage(
+                        "Binance authenticated the request, but this API key cannot trade USD-M Futures.");
+            } else {
+                diagnostics.setFuturesPermissionOk(Boolean.TRUE);
+                diagnostics.setBlockerCode(null);
+                diagnostics.setBlockerMessage(null);
+            }
         }
+
         return diagnostics;
     }
 
     public LiveTradeBlockedReasonDTO classifyExecutionFailure(Throwable error) {
+        if (error instanceof BinanceCredentialException credentialException) {
+            String blockerCode = credentialException.getFailureCode() != null
+                    ? credentialException.getFailureCode()
+                    : LiveTradingBlockerCodes.BINANCE_AUTH_INVALID;
+            return new LiveTradeBlockedReasonDTO(
+                    blockerCode,
+                    credentialException.getMessage(),
+                    "credentials",
+                    detailsOf(
+                            "credentialSource", credentialException.getCredentialSource(),
+                            "authMode", credentialException.getAuthMode()));
+        }
         if (error instanceof WebClientRequestException requestException) {
             return new LiveTradeBlockedReasonDTO(
                     LiveTradingBlockerCodes.BINANCE_NETWORK,
@@ -105,7 +155,8 @@ public class LiveTradingBinanceDiagnosticsService {
                     "binance",
                     detailsMap(details));
         }
-        if (error instanceof BotReadOnlyException || containsReadOnlyMessage(error != null ? error.getMessage() : null)) {
+        if (error instanceof BotReadOnlyException
+                || containsReadOnlyMessage(error != null ? error.getMessage() : null)) {
             return new LiveTradeBlockedReasonDTO(
                     LiveTradingBlockerCodes.BOT_READ_ONLY,
                     "Trading is disabled. Bot is in READ-ONLY mode.",
@@ -114,10 +165,18 @@ public class LiveTradingBinanceDiagnosticsService {
         }
         if (error instanceof IllegalStateException illegalStateException) {
             String message = illegalStateException.getMessage();
+            if (containsIgnoreCase(message, "could not be decrypted")
+                    || containsIgnoreCase(message, "decrypt")) {
+                return new LiveTradeBlockedReasonDTO(
+                        LiveTradingBlockerCodes.CREDENTIAL_DECRYPT_FAILED,
+                        "Stored Binance credentials are unreadable. Please re-save credentials in Settings.",
+                        "credentials",
+                        detailsOf("exceptionType", illegalStateException.getClass().getSimpleName()));
+            }
             if (containsIgnoreCase(message, "sign binance request")) {
                 return new LiveTradeBlockedReasonDTO(
                         LiveTradingBlockerCodes.BINANCE_SIGNING_FAILED,
-                        BinanceErrorClassifier.defaultMessage(LiveTradingBlockerCodes.BINANCE_SIGNING_FAILED, null),
+                        "The backend could not sign the Binance request for the selected credential type.",
                         "binance",
                         detailsOf("exceptionType", illegalStateException.getClass().getSimpleName()));
             }
@@ -125,7 +184,7 @@ public class LiveTradingBinanceDiagnosticsService {
                     || containsIgnoreCase(message, "api key/secret are missing")) {
                 return new LiveTradeBlockedReasonDTO(
                         LiveTradingBlockerCodes.BINANCE_AUTH_INVALID,
-                        "Binance API key/secret are missing.",
+                        "Binance credentials are missing.",
                         "binance",
                         detailsOf("exceptionType", illegalStateException.getClass().getSimpleName()));
             }
@@ -165,8 +224,7 @@ public class LiveTradingBinanceDiagnosticsService {
     }
 
     private void applyPrimaryProbeFailure(LiveTradingPreflightDTO.Binance diagnostics,
-            LiveTradingPreflightDTO.ProbeResult probe,
-            boolean allowSpotCrossCheck) {
+            LiveTradingPreflightDTO.ProbeResult probe) {
         if (probe == null || probe.isSuccess()) {
             return;
         }
@@ -174,66 +232,66 @@ public class LiveTradingBinanceDiagnosticsService {
         String blockerCode = probe.getBlockerCode();
         String blockerMessage = probe.getMessage();
 
-        if (allowSpotCrossCheck && LiveTradingBlockerCodes.BINANCE_AUTH_INVALID.equals(blockerCode)) {
-            LiveTradingPreflightDTO.ProbeResult spotProbe = probe(
-                    "spotAccountRead",
-                    "GET",
-                    "/api/v3/account",
-                    binanceClient.getSpotBaseUrl(),
-                    binanceClient::getSpotAccount);
-            diagnostics.getEndpointResults().add(spotProbe);
-            if (spotProbe.isSuccess()) {
-                blockerCode = LiveTradingBlockerCodes.BINANCE_FUTURES_PERMISSION_MISSING;
-                blockerMessage = "Spot auth succeeds, but Binance Futures signed access is missing for this key.";
-                diagnostics.setFuturesPermissionOk(Boolean.FALSE);
-                diagnostics.setIpAllowlistOk(Boolean.TRUE);
-                diagnostics.setSigningOk(Boolean.TRUE);
-                diagnostics.setTimestampOk(Boolean.TRUE);
-            } else {
-                String requestIpHint = firstNonBlank(probe.getBinanceMessage(), spotProbe.getBinanceMessage());
-                String hintedIp = extractRequestIpHint(probe, spotProbe);
-                if (hintedIp != null) {
-                    blockerCode = LiveTradingBlockerCodes.BINANCE_IP_NOT_ALLOWED;
-                    blockerMessage = "Binance rejected the backend host IP. Verify the Binance trusted IP allowlist.";
-                    diagnostics.setIpAllowlistOk(Boolean.FALSE);
-                    diagnostics.setRequestIpHint(hintedIp);
-                } else {
-                    blockerCode = LiveTradingBlockerCodes.BINANCE_AUTH_INVALID;
-                    blockerMessage = "Binance signed auth failed for both Futures and Spot probes.";
-                    diagnostics.setIpAllowlistOk(null);
-                }
-                diagnostics.setFuturesPermissionOk(Boolean.FALSE);
-                diagnostics.setSigningOk(Boolean.FALSE);
-                diagnostics.setTimestampOk(Boolean.FALSE);
-                if (requestIpHint != null && diagnostics.getRequestIpHint() == null) {
-                    diagnostics.setRequestIpHint(extractRequestIpHint(probe, spotProbe));
-                }
-            }
-        } else {
-            if (LiveTradingBlockerCodes.BINANCE_IP_NOT_ALLOWED.equals(blockerCode)) {
-                diagnostics.setIpAllowlistOk(Boolean.FALSE);
-            }
-            if (LiveTradingBlockerCodes.BINANCE_TIMESTAMP_INVALID.equals(blockerCode)) {
-                diagnostics.setTimestampOk(Boolean.FALSE);
-            }
-            if (LiveTradingBlockerCodes.BINANCE_SIGNING_FAILED.equals(blockerCode)) {
-                diagnostics.setSigningOk(Boolean.FALSE);
-            }
-            if (LiveTradingBlockerCodes.BINANCE_ENDPOINT_MISCONFIGURED.equals(blockerCode)) {
-                diagnostics.setFuturesPermissionOk(Boolean.FALSE);
-            }
-            String hintedIp = extractRequestIpHint(probe);
-            if (hintedIp != null) {
-                diagnostics.setRequestIpHint(hintedIp);
-            }
+        if (LiveTradingBlockerCodes.BINANCE_IP_NOT_ALLOWED.equals(blockerCode)) {
+            diagnostics.setIpAllowlistOk(Boolean.FALSE);
+        }
+        if (LiveTradingBlockerCodes.BINANCE_TIMESTAMP_INVALID.equals(blockerCode)) {
+            diagnostics.setTimestampOk(Boolean.FALSE);
+        }
+        if (LiveTradingBlockerCodes.BINANCE_SIGNING_FAILED.equals(blockerCode)) {
+            diagnostics.setSigningOk(Boolean.FALSE);
+        }
+        if (LiveTradingBlockerCodes.USER_CONFIGURATION_MISMATCH.equals(blockerCode)
+                || LiveTradingBlockerCodes.CREDENTIAL_SOURCE_MISMATCH.equals(blockerCode)
+                || LiveTradingBlockerCodes.PLACEHOLDER_CREDENTIALS_DETECTED.equals(blockerCode)) {
+            diagnostics.setSigningOk(Boolean.FALSE);
+            diagnostics.setFuturesPermissionOk(Boolean.FALSE);
+        }
+        String hintedIp = extractRequestIpHint(probe);
+        if (hintedIp != null) {
+            diagnostics.setRequestIpHint(hintedIp);
         }
 
         if (diagnostics.getBlockerCode() == null
-                || LiveTradingBlockerCodes.priority(blockerCode)
-                        < LiveTradingBlockerCodes.priority(diagnostics.getBlockerCode())) {
+                || LiveTradingBlockerCodes.priority(blockerCode) < LiveTradingBlockerCodes
+                        .priority(diagnostics.getBlockerCode())) {
             diagnostics.setBlockerCode(blockerCode);
             diagnostics.setBlockerMessage(blockerMessage);
         }
+    }
+
+    private LiveTradingPreflightDTO.Binance baseDiagnostics(boolean credentialsPresent,
+            String credentialSource,
+            String authMode) {
+        LiveTradingPreflightDTO.Binance diagnostics = new LiveTradingPreflightDTO.Binance();
+        diagnostics.setCredentialsPresent(credentialsPresent);
+        diagnostics.setCredentialSource(credentialSource);
+        diagnostics.setAuthMode(authMode);
+        diagnostics.setEndpointFamily("BINANCE_FUTURES");
+        diagnostics.setBaseUrl(binanceClient.getFuturesBaseUrl());
+        diagnostics.setSpotBaseUrl(binanceClient.getSpotBaseUrl());
+        diagnostics.setRecvWindowMs(binanceClient.getSignedRecvWindowMs());
+        diagnostics.setLocalTimestampMs(System.currentTimeMillis());
+        diagnostics.setAuthValid(Boolean.FALSE);
+        return diagnostics;
+    }
+
+    private Boolean extractCanTrade(LiveTradingPreflightDTO.ProbeResult accountProbe) {
+        if (accountProbe == null || !accountProbe.isSuccess()) {
+            return null;
+        }
+        String summary = accountProbe.getMessage();
+        if (summary == null || summary.isBlank()) {
+            return null;
+        }
+        String normalized = summary.toLowerCase();
+        if (normalized.contains("cantrade=false")) {
+            return Boolean.FALSE;
+        }
+        if (normalized.contains("cantrade=true")) {
+            return Boolean.TRUE;
+        }
+        return null;
     }
 
     private LiveTradingPreflightDTO.ProbeResult probe(String name,
@@ -299,6 +357,9 @@ public class LiveTradingBinanceDiagnosticsService {
             return "items=" + list.size();
         }
         if (response instanceof Map<?, ?> map) {
+            if (map.containsKey("canTrade")) {
+                return "canTrade=" + map.get("canTrade");
+            }
             return "keys=" + map.keySet();
         }
         return response.getClass().getSimpleName();
@@ -337,18 +398,6 @@ public class LiveTradingBinanceDiagnosticsService {
             int markerIndex = message.toLowerCase().indexOf("request ip:");
             if (markerIndex >= 0) {
                 return message.substring(markerIndex + "request ip:".length()).trim();
-            }
-        }
-        return null;
-    }
-
-    private String firstNonBlank(String... values) {
-        if (values == null) {
-            return null;
-        }
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value;
             }
         }
         return null;

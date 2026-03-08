@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.NotFoundContractsWebMvcTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:24" hostname="CamaltekiMacBook-Pro.local" time="0.057">
+  <properties/>
+  <testcase name="missingRecommendationReturns404Envelope()" classname="com.tradebot.NotFoundContractsWebMvcTest" time="0.01"/>
+  <testcase name="missingScanSummaryReturns404Envelope()" classname="com.tradebot.NotFoundContractsWebMvcTest" time="0.042"/>
+  <testcase name="missingScanReplayReturns404Envelope()" classname="com.tradebot.NotFoundContractsWebMvcTest" time="0.005"/>
+  <system-out><![CDATA[2026-03-08T15:34:24.197+04:00  INFO 98901 --- [    Test worker] o.s.mock.web.MockServletContext          : Initializing Spring TestDispatcherServlet ''
+2026-03-08T15:34:24.197+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-08T15:34:24.197+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-08T15:34:24.198+04:00  WARN 98901 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 6ff5780a-9192-4026-a3ab-ad14eb775135] NotFound at /api/v1/recommendations/00000000-0000-0000-0000-000000000001: Recommendation not found: 00000000-0000-0000-0000-000000000001
+2026-03-08T15:34:24.240+04:00  INFO 98901 --- [    Test worker] o.s.mock.web.MockServletContext          : Initializing Spring TestDispatcherServlet ''
+2026-03-08T15:34:24.240+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-08T15:34:24.240+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-08T15:34:24.240+04:00  WARN 98901 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: b1d543dc-dfa3-48ec-9b0f-48984f275ec6] NotFound at /api/v1/scans/00000000-0000-0000-0000-000000000002: Scan run not found: 00000000-0000-0000-0000-000000000002
+2026-03-08T15:34:24.244+04:00  INFO 98901 --- [    Test worker] o.s.mock.web.MockServletContext          : Initializing Spring TestDispatcherServlet ''
+2026-03-08T15:34:24.244+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-08T15:34:24.244+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-08T15:34:24.245+04:00  WARN 98901 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 2355a8db-7949-4dcf-a046-d3af88517392] NotFound at /api/v1/scans/00000000-0000-0000-0000-000000000003/replay: Scan run not found: 00000000-0000-0000-0000-000000000003
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

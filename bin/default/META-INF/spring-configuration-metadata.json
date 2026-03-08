@@ -1,0 +1,285 @@
+{
+  "groups": [
+    {
+      "name": "ai",
+      "type": "com.tradebot.config.AiProperties",
+      "sourceType": "com.tradebot.config.AiProperties"
+    },
+    {
+      "name": "ai.openrouter",
+      "type": "com.tradebot.config.AiProperties$OpenRouter",
+      "sourceType": "com.tradebot.config.AiProperties",
+      "sourceMethod": "public com.tradebot.config.AiProperties.OpenRouter getOpenrouter() "
+    },
+    {
+      "name": "ai.safety",
+      "type": "com.tradebot.config.AiProperties$Safety",
+      "sourceType": "com.tradebot.config.AiProperties",
+      "sourceMethod": "public com.tradebot.config.AiProperties.Safety getSafety() "
+    },
+    {
+      "name": "app",
+      "type": "com.tradebot.config.AppProperties",
+      "sourceType": "com.tradebot.config.AppProperties"
+    },
+    {
+      "name": "app.binance",
+      "type": "com.tradebot.config.AppProperties$Binance",
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "public com.tradebot.config.AppProperties.Binance getBinance() "
+    },
+    {
+      "name": "app.budget",
+      "type": "com.tradebot.config.AppProperties$Budget",
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "public com.tradebot.config.AppProperties.Budget getBudget() "
+    },
+    {
+      "name": "app.openrouter",
+      "type": "com.tradebot.config.AppProperties$OpenRouter",
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "public com.tradebot.config.AppProperties.OpenRouter getOpenrouter() "
+    },
+    {
+      "name": "app.risk",
+      "type": "com.tradebot.config.AppProperties$Risk",
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "public com.tradebot.config.AppProperties.Risk getRisk() "
+    },
+    {
+      "name": "app.scanner",
+      "type": "com.tradebot.config.AppProperties$Scanner",
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "public com.tradebot.config.AppProperties.Scanner getScanner() "
+    },
+    {
+      "name": "app.strategy",
+      "type": "com.tradebot.config.AppProperties$Strategy",
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "public com.tradebot.config.AppProperties.Strategy getStrategy() "
+    },
+    {
+      "name": "demo-ai",
+      "type": "com.tradebot.config.DemoAiProperties",
+      "sourceType": "com.tradebot.config.DemoAiProperties"
+    },
+    {
+      "name": "demo-ai.routing",
+      "type": "com.tradebot.config.DemoAiProperties$RoutingOverrides",
+      "sourceType": "com.tradebot.config.DemoAiProperties",
+      "sourceMethod": "public com.tradebot.config.DemoAiProperties.RoutingOverrides getRouting() "
+    },
+    {
+      "name": "demo-ai.routing.explainability",
+      "type": "com.tradebot.config.DemoAiProperties$TaskRoutingOverride",
+      "sourceType": "com.tradebot.config.DemoAiProperties$RoutingOverrides",
+      "sourceMethod": "public com.tradebot.config.DemoAiProperties.TaskRoutingOverride getExplainability() "
+    },
+    {
+      "name": "demo-ai.routing.suggestion",
+      "type": "com.tradebot.config.DemoAiProperties$TaskRoutingOverride",
+      "sourceType": "com.tradebot.config.DemoAiProperties$RoutingOverrides",
+      "sourceMethod": "public com.tradebot.config.DemoAiProperties.TaskRoutingOverride getSuggestion() "
+    },
+    {
+      "name": "demo-ai.routing.vision",
+      "type": "com.tradebot.config.DemoAiProperties$VisionRoutingOverride",
+      "sourceType": "com.tradebot.config.DemoAiProperties$RoutingOverrides",
+      "sourceMethod": "public com.tradebot.config.DemoAiProperties.VisionRoutingOverride getVision() "
+    },
+    {
+      "name": "demo-trading",
+      "type": "com.tradebot.config.DemoTradingProperties",
+      "sourceType": "com.tradebot.config.DemoTradingProperties"
+    },
+    {
+      "name": "demo-trading.binance",
+      "type": "com.tradebot.config.DemoTradingProperties$BinanceCredentials",
+      "sourceType": "com.tradebot.config.DemoTradingProperties",
+      "sourceMethod": "public com.tradebot.config.DemoTradingProperties.BinanceCredentials getBinance() "
+    }
+  ],
+  "properties": [
+    {
+      "name": "ai.openrouter.api-key",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.AiProperties$OpenRouter"
+    },
+    {
+      "name": "ai.openrouter.base-url",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.AiProperties$OpenRouter"
+    },
+    {
+      "name": "ai.safety.max-input-chars",
+      "type": "java.lang.Integer",
+      "sourceType": "com.tradebot.config.AiProperties$Safety"
+    },
+    {
+      "name": "ai.safety.max-retries-per-call",
+      "type": "java.lang.Integer",
+      "sourceType": "com.tradebot.config.AiProperties$Safety"
+    },
+    {
+      "name": "ai.safety.request-timeout-ms",
+      "type": "java.lang.Integer",
+      "sourceType": "com.tradebot.config.AiProperties$Safety"
+    },
+    {
+      "name": "ai.safety.require-strict-json-for-suggestion",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.tradebot.config.AiProperties$Safety"
+    },
+    {
+      "name": "app.binance.api-key",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.AppProperties$Binance"
+    },
+    {
+      "name": "app.binance.api-secret",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.AppProperties$Binance"
+    },
+    {
+      "name": "app.budget.usdt",
+      "type": "java.math.BigDecimal",
+      "sourceType": "com.tradebot.config.AppProperties$Budget"
+    },
+    {
+      "name": "app.leverage",
+      "type": "java.lang.Integer",
+      "sourceType": "com.tradebot.config.AppProperties"
+    },
+    {
+      "name": "app.openrouter.allowed-models",
+      "type": "java.util.List<java.lang.String>",
+      "sourceType": "com.tradebot.config.AppProperties$OpenRouter"
+    },
+    {
+      "name": "app.openrouter.api-key",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.AppProperties$OpenRouter"
+    },
+    {
+      "name": "app.openrouter.model",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.AppProperties$OpenRouter"
+    },
+    {
+      "name": "app.openrouter.model-controls-enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.tradebot.config.AppProperties$OpenRouter"
+    },
+    {
+      "name": "app.risk.equity-override-usdt",
+      "type": "java.math.BigDecimal",
+      "sourceType": "com.tradebot.config.AppProperties$Risk"
+    },
+    {
+      "name": "app.risk.max-budget-pct",
+      "type": "java.math.BigDecimal",
+      "sourceType": "com.tradebot.config.AppProperties$Risk"
+    },
+    {
+      "name": "app.risk.max-equity-pct",
+      "type": "java.math.BigDecimal",
+      "sourceType": "com.tradebot.config.AppProperties$Risk"
+    },
+    {
+      "name": "app.scanner.exchange-info-max-in-memory-bytes",
+      "type": "java.lang.Integer",
+      "sourceType": "com.tradebot.config.AppProperties$Scanner"
+    },
+    {
+      "name": "app.scanner.interval-minutes",
+      "type": "java.lang.Integer",
+      "sourceType": "com.tradebot.config.AppProperties$Scanner"
+    },
+    {
+      "name": "app.scanner.top-n",
+      "type": "java.lang.Integer",
+      "sourceType": "com.tradebot.config.AppProperties$Scanner"
+    },
+    {
+      "name": "app.strategy.fractal-period",
+      "type": "java.lang.Integer",
+      "sourceType": "com.tradebot.config.AppProperties$Strategy"
+    },
+    {
+      "name": "app.strategy.invalidation-candles",
+      "type": "java.lang.Integer",
+      "sourceType": "com.tradebot.config.AppProperties$Strategy"
+    },
+    {
+      "name": "app.strategy.max-sweep-candles",
+      "type": "java.lang.Integer",
+      "sourceType": "com.tradebot.config.AppProperties$Strategy"
+    },
+    {
+      "name": "app.strategy.min-rr",
+      "type": "java.math.BigDecimal",
+      "sourceType": "com.tradebot.config.AppProperties$Strategy"
+    },
+    {
+      "name": "app.strategy.sl-buffer-pct",
+      "type": "java.math.BigDecimal",
+      "sourceType": "com.tradebot.config.AppProperties$Strategy"
+    },
+    {
+      "name": "app.working-type",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.AppProperties"
+    },
+    {
+      "name": "demo-ai.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.tradebot.config.DemoAiProperties"
+    },
+    {
+      "name": "demo-ai.routing.explainability.fallback-models",
+      "type": "java.util.List<java.lang.String>",
+      "sourceType": "com.tradebot.config.DemoAiProperties$TaskRoutingOverride"
+    },
+    {
+      "name": "demo-ai.routing.explainability.primary-model",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.DemoAiProperties$TaskRoutingOverride"
+    },
+    {
+      "name": "demo-ai.routing.suggestion.fallback-models",
+      "type": "java.util.List<java.lang.String>",
+      "sourceType": "com.tradebot.config.DemoAiProperties$TaskRoutingOverride"
+    },
+    {
+      "name": "demo-ai.routing.suggestion.primary-model",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.DemoAiProperties$TaskRoutingOverride"
+    },
+    {
+      "name": "demo-ai.routing.vision.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.tradebot.config.DemoAiProperties$VisionRoutingOverride"
+    },
+    {
+      "name": "demo-ai.routing.vision.fallback-models",
+      "type": "java.util.List<java.lang.String>",
+      "sourceType": "com.tradebot.config.DemoAiProperties$VisionRoutingOverride"
+    },
+    {
+      "name": "demo-ai.routing.vision.primary-model",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.DemoAiProperties$VisionRoutingOverride"
+    },
+    {
+      "name": "demo-trading.binance.api-key",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.DemoTradingProperties$BinanceCredentials"
+    },
+    {
+      "name": "demo-trading.binance.api-secret",
+      "type": "java.lang.String",
+      "sourceType": "com.tradebot.config.DemoTradingProperties$BinanceCredentials"
+    }
+  ],
+  "hints": []
+}

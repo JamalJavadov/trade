@@ -136,6 +136,10 @@ function buildPreflight(overrides: Partial<LiveTradingPreflightDTO> = {}): LiveT
         binance: {
             credentialsPresent: true,
             authValid: true,
+            credentialSource: 'SECURE_UI_SAVED',
+            authMode: 'ASYMMETRIC_KEYPAIR',
+            accountInfoReadOk: true,
+            accountConfigReadOk: true,
             futuresOrderReadOk: true,
             positionModeReadOk: true,
             ipAllowlistOk: true,
@@ -173,6 +177,13 @@ function buildPreflight(overrides: Partial<LiveTradingPreflightDTO> = {}): LiveT
         placeability: null,
         placeabilityOk: true,
         blockedReasons: [],
+        summary: {
+            connectionStatus: 'CONNECTED',
+            executableNow: true,
+            primaryBlockerCode: null,
+            primaryBlockerMessage: null,
+            advancedDiagnosticsAvailable: false,
+        },
         ...overrides,
     };
 }
@@ -208,7 +219,31 @@ function buildExecution(overrides: Partial<LiveTradeExecutionDTO> = {}): LiveTra
         },
         payloadSnapshot: {},
         preflight: {},
-        exchangeResponse: {},
+        exchangeResponse: {
+            entry: {
+                status: 'FILLED',
+                resolvedState: 'ENTRY_FILLED',
+                resolvedFilledQuantity: 0.01,
+                resolvedAvgPrice: 100000,
+            },
+            stopLoss: {
+                algoStatus: 'NEW',
+            },
+            takeProfit: {
+                algoStatus: 'NEW',
+            },
+            position: {
+                positionAmt: '0.01',
+                entryPrice: '100000.0',
+            },
+            reconciliation: {
+                hasPosition: true,
+                stopLossActive: true,
+                takeProfitActive: true,
+                emergencyCloseFilled: false,
+                protectionTriggered: false,
+            },
+        },
         events: [
             {
                 id: 'evt-1',
@@ -301,7 +336,7 @@ describe('RecommendationDetailPage live execution panel', () => {
         renderPage();
 
         expect(await screen.findByText('Real Binance Execution')).toBeInTheDocument();
-        expect(screen.getByText('Blocked Reasons')).toBeInTheDocument();
+        expect(screen.getByText('All Blocked Reasons')).toBeInTheDocument();
         expect(screen.getByText('BOT_READ_ONLY')).toBeInTheDocument();
         expect(screen.getAllByText('READ ONLY').length).toBeGreaterThan(0);
 
@@ -357,7 +392,73 @@ describe('RecommendationDetailPage live execution panel', () => {
         expect(await screen.findByText('Latest Execution Attempt')).toBeInTheDocument();
         expect(screen.getAllByText('RECONCILED').length).toBeGreaterThan(0);
         expect(screen.getByText(/BINANCE_REJECTED: Exchange rejected the request/)).toBeInTheDocument();
+        expect(screen.getByText('Protection')).toBeInTheDocument();
+        expect(screen.getByText('Exchange Truth')).toBeInTheDocument();
         expect(screen.getByText('Execution Timeline')).toBeInTheDocument();
+    });
+
+    it('renders emergency-close-filled as explicit non-success state with protection failure details', async () => {
+        useRecommendationExecutionMock.mockReturnValue({
+            preflight: buildPreflight(),
+            execution: buildExecution({
+                executionState: 'EMERGENCY_CLOSE_FILLED',
+                errorCode: 'BINANCE_REJECTED',
+                errorMessage: 'Stop-loss protection failed.',
+                exchangeResponse: {
+                    entry: {
+                        status: 'FILLED',
+                        resolvedState: 'ENTRY_FILLED',
+                        resolvedFilledQuantity: 0.01,
+                        resolvedAvgPrice: 100000,
+                    },
+                    stopLoss: {
+                        submitted: false,
+                        errorCode: 'BINANCE_REJECTED',
+                    },
+                    takeProfit: {
+                        algoStatus: 'NEW',
+                    },
+                    protectionFailure: {
+                        failedLegs: ['stopLoss'],
+                        downsideProtected: false,
+                        errorMessage: 'Stop-loss protection failed.',
+                    },
+                    emergencyClose: {
+                        status: 'FILLED',
+                        orderId: 999,
+                        executedQty: 0.01,
+                    },
+                    position: {
+                        positionAmt: '0',
+                        entryPrice: '100000.0',
+                    },
+                    reconciliation: {
+                        hasPosition: false,
+                        stopLossActive: false,
+                        takeProfitActive: false,
+                        emergencyCloseFilled: true,
+                        protectionTriggered: false,
+                    },
+                },
+            }),
+            history: [],
+            loading: false,
+            preflightLoading: false,
+            historyLoading: false,
+            executing: false,
+            actionError: null,
+            refresh: vi.fn().mockResolvedValue(undefined),
+            executeLive: executeLiveMock,
+            clearActionError: vi.fn(),
+        });
+
+        renderPage();
+
+        expect(await screen.findByText('Latest Execution Attempt')).toBeInTheDocument();
+        expect(screen.getByText('EMERGENCY_CLOSE_FILLED')).toBeInTheDocument();
+        expect(screen.getByText('Failed legs: stopLoss')).toBeInTheDocument();
+        expect(screen.getByText('Downside protected: NO')).toBeInTheDocument();
+        expect(screen.getByText('Stop-loss protection failed.')).toBeInTheDocument();
     });
 
     it('keeps the real-order button visible but disabled when live execution capability is off', async () => {
