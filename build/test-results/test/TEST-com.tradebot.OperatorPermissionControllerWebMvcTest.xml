@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.tradebot.OperatorPermissionControllerWebMvcTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:24" hostname="CamaltekiMacBook-Pro.local" time="0.027">
+<testsuite name="com.tradebot.OperatorPermissionControllerWebMvcTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:41" hostname="CamaltekiMacBook-Pro.local" time="0.021">
   <properties/>
-  <testcase name="localhostPermissionUpdateSucceedsWithoutAdminToken()" classname="com.tradebot.OperatorPermissionControllerWebMvcTest" time="0.021"/>
-  <testcase name="nonLocalPermissionUpdateIsBlocked()" classname="com.tradebot.OperatorPermissionControllerWebMvcTest" time="0.003"/>
+  <testcase name="localhostPermissionUpdateSucceedsWithoutAdminToken()" classname="com.tradebot.OperatorPermissionControllerWebMvcTest" time="0.017"/>
+  <testcase name="nonLocalPermissionUpdateIsBlocked()" classname="com.tradebot.OperatorPermissionControllerWebMvcTest" time="0.002"/>
   <testcase name="getPermissionsReturnsArrayShapeWithItems()" classname="com.tradebot.OperatorPermissionControllerWebMvcTest" time="0.001"/>
-  <system-out><![CDATA[2026-03-08T15:34:24.307+04:00  INFO 98901 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.OperatorPermissionControllerWebMvcTest]: OperatorPermissionControllerWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-2026-03-08T15:34:24.308+04:00  INFO 98901 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.OperatorPermissionControllerWebMvcTest
+  <system-out><![CDATA[2026-03-09T23:39:40.956+04:00  INFO 84573 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.OperatorPermissionControllerWebMvcTest]: OperatorPermissionControllerWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-09T23:39:40.957+04:00  INFO 84573 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.OperatorPermissionControllerWebMvcTest
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -15,13 +15,13 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.2.4)
 
-2026-03-08T15:34:24.315+04:00  INFO 98901 --- [    Test worker] t.OperatorPermissionControllerWebMvcTest : Starting OperatorPermissionControllerWebMvcTest using Java 21.0.9 with PID 98901 (started by camal in /Users/camal/Documents/trade/trade bot)
-2026-03-08T15:34:24.315+04:00  INFO 98901 --- [    Test worker] t.OperatorPermissionControllerWebMvcTest : No active profile set, falling back to 1 default profile: "default"
-2026-03-08T15:34:24.399+04:00  INFO 98901 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
-2026-03-08T15:34:24.399+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
-2026-03-08T15:34:24.399+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
-2026-03-08T15:34:24.402+04:00  INFO 98901 --- [    Test worker] t.OperatorPermissionControllerWebMvcTest : Started OperatorPermissionControllerWebMvcTest in 0.093 seconds (process running for 4.188)
-2026-03-08T15:34:24.427+04:00  WARN 98901 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 08468dfe-2e3c-4ec8-9db0-db20406c81c7] Forbidden non-local mutation at /api/v1/operator/permissions remote=10.0.0.5 origin=http://evil.com
+2026-03-09T23:39:40.963+04:00  INFO 84573 --- [    Test worker] t.OperatorPermissionControllerWebMvcTest : Starting OperatorPermissionControllerWebMvcTest using Java 21.0.9 with PID 84573 (started by camal in /Users/camal/Documents/making money/trade/trade bot)
+2026-03-09T23:39:40.963+04:00  INFO 84573 --- [    Test worker] t.OperatorPermissionControllerWebMvcTest : No active profile set, falling back to 1 default profile: "default"
+2026-03-09T23:39:41.033+04:00  INFO 84573 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-09T23:39:41.034+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-09T23:39:41.034+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-09T23:39:41.035+04:00  INFO 84573 --- [    Test worker] t.OperatorPermissionControllerWebMvcTest : Started OperatorPermissionControllerWebMvcTest in 0.078 seconds (process running for 4.784)
+2026-03-09T23:39:41.054+04:00  WARN 84573 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 87a7f709-22d1-4c0c-809b-2d3a2e10adf4] Forbidden non-local mutation at /api/v1/operator/permissions remote=10.0.0.5 origin=http://evil.com
 ]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

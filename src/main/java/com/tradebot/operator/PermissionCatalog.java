@@ -40,7 +40,13 @@ public class PermissionCatalog {
                         DangerLevel.HIGH),
 
                 new PermissionDefinition("live.execution.enabled", "Enable Live Execution",
-                        "Allows manual Binance Futures order execution from recommendation detail.",
+                        "Allows manual Binance Futures order execution from recommendation detail and auto-session execution runtime.",
+                        PermissionGroup.LIVE, DangerLevel.HIGH),
+                new PermissionDefinition("live.execution.auto_session.audit.view", "View Auto Session Audit",
+                        "Allows viewing budget-target auto-execution audit reports, timelines, trade history, and live audit stream.",
+                        PermissionGroup.LIVE, DangerLevel.LOW),
+                new PermissionDefinition("live.execution.auto_session.manage", "Manage Auto Session Execution",
+                        "Allows enabling, disabling, and supervising budget-target auto-execution sessions.",
                         PermissionGroup.LIVE, DangerLevel.HIGH),
 
                 new PermissionDefinition("journal.feedback.submit", "Submit Journal Feedback",

@@ -29,6 +29,9 @@ import java.util.regex.Pattern;
 @Slf4j
 public class AiCallLogService {
 
+    private static final int STATUS_MAX_LENGTH = 16;
+    private static final int SHORT_TEXT_MAX_LENGTH = 64;
+    private static final int MODEL_MAX_LENGTH = 255;
     private static final Pattern SECRET_TOKEN_PATTERN = Pattern.compile("sk-[A-Za-z0-9_-]+");
     private static final Pattern BEARER_TOKEN_PATTERN = Pattern.compile("(?i)Bearer\\s+[A-Za-z0-9._-]+");
 
@@ -50,31 +53,37 @@ public class AiCallLogService {
         if (mode == AiMode.DEMO) {
             DemoAiCallLog row = new DemoAiCallLog();
             row.setCreatedAt(Instant.now());
-            row.setTaskType(request.getTaskType().name());
-            row.setModelRequested(attempt.getModelRequested());
-            row.setModelUsed(attempt.getModelUsed());
-            row.setStatus(attempt.getStatus().name());
-            row.setErrorCode(attempt.getErrorCode() != null ? attempt.getErrorCode().name() : null);
+            row.setTaskType(truncate(request.getTaskType().name(), SHORT_TEXT_MAX_LENGTH));
+            row.setModelRequested(truncate(attempt.getModelRequested(), MODEL_MAX_LENGTH));
+            row.setModelUsed(truncate(attempt.getModelUsed(), MODEL_MAX_LENGTH));
+            row.setStatus(truncate(attempt.getStatus().name(), STATUS_MAX_LENGTH));
+            row.setErrorCode(truncate(
+                    attempt.getErrorCode() != null ? attempt.getErrorCode().name() : null,
+                    SHORT_TEXT_MAX_LENGTH));
             row.setErrorMessage(sanitizeText(attempt.getErrorMessage(), null));
             row.setLatencyMs(attempt.getLatencyMs());
-            row.setTraceId(traceId);
+            row.setTraceId(truncate(traceId, SHORT_TEXT_MAX_LENGTH));
             row.setPromptSanitizedJson(promptJson);
             row.setResponseSanitizedJson(responseJson);
             demoAiCallLogRepository.save(row);
         } else {
             AiCallLog row = new AiCallLog();
             row.setCreatedAt(Instant.now());
-            row.setTaskType(request.getTaskType().name());
-            row.setProvider("openrouter.ai");
-            row.setModel(attempt.getModelUsed() != null ? attempt.getModelUsed() : attempt.getModelRequested());
-            row.setModelRequested(attempt.getModelRequested());
-            row.setModelUsed(attempt.getModelUsed());
-            row.setStatus(attempt.getStatus().name());
-            row.setErrorCode(attempt.getErrorCode() != null ? attempt.getErrorCode().name() : null);
+            row.setTaskType(truncate(request.getTaskType().name(), SHORT_TEXT_MAX_LENGTH));
+            row.setProvider(truncate("openrouter.ai", SHORT_TEXT_MAX_LENGTH));
+            row.setModel(truncate(
+                    attempt.getModelUsed() != null ? attempt.getModelUsed() : attempt.getModelRequested(),
+                    MODEL_MAX_LENGTH));
+            row.setModelRequested(truncate(attempt.getModelRequested(), MODEL_MAX_LENGTH));
+            row.setModelUsed(truncate(attempt.getModelUsed(), MODEL_MAX_LENGTH));
+            row.setStatus(truncate(attempt.getStatus().name(), STATUS_MAX_LENGTH));
+            row.setErrorCode(truncate(
+                    attempt.getErrorCode() != null ? attempt.getErrorCode().name() : null,
+                    SHORT_TEXT_MAX_LENGTH));
             row.setErrorMessage(sanitizeText(attempt.getErrorMessage(), null));
             row.setHttpStatus(httpStatusForCode(attempt.getErrorCode()));
             row.setLatencyMs(attempt.getLatencyMs());
-            row.setTraceId(traceId);
+            row.setTraceId(truncate(traceId, SHORT_TEXT_MAX_LENGTH));
             row.setPromptSanitizedJson(promptJson);
             row.setResponseSanitizedJson(responseJson);
             row.setPromptText(sanitizeText(request.getUserPrompt(), "prompt"));
@@ -240,5 +249,12 @@ public class AiCallLogService {
             case OPENROUTER_NETWORK, OPENROUTER_INTERNAL -> 503;
             default -> null;
         };
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 }

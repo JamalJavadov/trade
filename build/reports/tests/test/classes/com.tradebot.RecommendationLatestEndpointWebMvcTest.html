@@ -41,7 +41,7 @@
 </td>
 <td>
 <div class="infoBox" id="duration">
-<div class="counter">0.019s</div>
+<div class="counter">0.015s</div>
 <p>duration</p>
 </div>
 </td>
@@ -84,7 +84,7 @@
 </tr>
 <tr>
 <td class="success">latestReturns200WithWarningWhenOrderFieldsAreMissingOrMalformed()</td>
-<td class="success">0.011s</td>
+<td class="success">0.008s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
@@ -94,7 +94,7 @@
 </tr>
 <tr>
 <td class="success">latestReturns503DbDownWhenRepositoryFails()</td>
-<td class="success">0.005s</td>
+<td class="success">0.004s</td>
 <td class="success">passed</td>
 </tr>
 </table>
@@ -102,8 +102,8 @@
 <div id="tab1" class="tab">
 <h2>Standard output</h2>
 <span class="code">
-<pre>2026-03-08T15:34:24.532+04:00  INFO 98901 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.RecommendationLatestEndpointWebMvcTest]: RecommendationLatestEndpointWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-2026-03-08T15:34:24.534+04:00  INFO 98901 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.RecommendationLatestEndpointWebMvcTest
+<pre>2026-03-09T23:39:41.149+04:00  INFO 84573 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.RecommendationLatestEndpointWebMvcTest]: RecommendationLatestEndpointWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-09T23:39:41.150+04:00  INFO 84573 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.RecommendationLatestEndpointWebMvcTest
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -113,17 +113,17 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.2.4)
 
-2026-03-08T15:34:24.542+04:00  INFO 98901 --- [    Test worker] t.RecommendationLatestEndpointWebMvcTest : Starting RecommendationLatestEndpointWebMvcTest using Java 21.0.9 with PID 98901 (started by camal in /Users/camal/Documents/trade/trade bot)
-2026-03-08T15:34:24.542+04:00  INFO 98901 --- [    Test worker] t.RecommendationLatestEndpointWebMvcTest : No active profile set, falling back to 1 default profile: &quot;default&quot;
-2026-03-08T15:34:24.640+04:00  INFO 98901 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
-2026-03-08T15:34:24.640+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
-2026-03-08T15:34:24.640+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
-2026-03-08T15:34:24.643+04:00  INFO 98901 --- [    Test worker] t.RecommendationLatestEndpointWebMvcTest : Started RecommendationLatestEndpointWebMvcTest in 0.109 seconds (process running for 4.429)
-2026-03-08T15:34:24.645+04:00 ERROR 98901 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 062acb9c-4853-43e9-b9a0-7815e14d246d] DB Exception at /api/v1/recommendations/latest: Database unavailable
+2026-03-09T23:39:41.156+04:00  INFO 84573 --- [    Test worker] t.RecommendationLatestEndpointWebMvcTest : Starting RecommendationLatestEndpointWebMvcTest using Java 21.0.9 with PID 84573 (started by camal in /Users/camal/Documents/making money/trade/trade bot)
+2026-03-09T23:39:41.156+04:00  INFO 84573 --- [    Test worker] t.RecommendationLatestEndpointWebMvcTest : No active profile set, falling back to 1 default profile: &quot;default&quot;
+2026-03-09T23:39:41.220+04:00  INFO 84573 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-09T23:39:41.221+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-09T23:39:41.221+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-09T23:39:41.222+04:00  INFO 84573 --- [    Test worker] t.RecommendationLatestEndpointWebMvcTest : Started RecommendationLatestEndpointWebMvcTest in 0.071 seconds (process running for 4.971)
+2026-03-09T23:39:41.225+04:00 ERROR 84573 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 80a4381d-18e8-4f59-9247-2214b4af53d3] DB Exception at /api/v1/recommendations/latest: Database unavailable
 
 org.springframework.dao.DataAccessResourceFailureException: Database unavailable
-	at com.tradebot.service.RecommendationQueryService.getLatestRecommendation(RecommendationQueryService.java:27) ~[main/:na]
-	at com.tradebot.controller.RecommendationController.getLatest(RecommendationController.java:50) ~[main/:na]
+	at com.tradebot.service.RecommendationQueryService.getLatestRecommendation(RecommendationQueryService.java:28) ~[main/:na]
+	at com.tradebot.controller.RecommendationController.getLatest(RecommendationController.java:55) ~[main/:na]
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
 	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
 	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:255) ~[spring-web-6.1.5.jar:6.1.5]
@@ -241,7 +241,7 @@ org.springframework.dao.DataAccessResourceFailureException: Database unavailable
 	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69) ~[gradle-worker.jar:na]
 	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74) ~[gradle-worker.jar:na]
 
-2026-03-08T15:34:24.651+04:00  WARN 98901 --- [    Test worker] c.t.service.RecommendationQueryService   : Failed to parse slOrderJson for latest recommendation: Unexpected end-of-input within/between Object entries
+2026-03-09T23:39:41.229+04:00  WARN 84573 --- [    Test worker] c.t.service.RecommendationQueryService   : Failed to parse slOrderJson for latest recommendation: Unexpected end-of-input within/between Object entries
  at [Source: (String)&quot;{&quot;side&quot;:&quot;SELL&quot;,&quot;; line: 1, column: 16]
 </pre>
 </span>
@@ -254,7 +254,7 @@ org.springframework.dao.DataAccessResourceFailureException: Database unavailable
 <input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
 </label>
 </div>Generated by 
-<a href="http://www.gradle.org">Gradle 8.7</a> at Mar 8, 2026, 3:34:25 PM</p>
+<a href="http://www.gradle.org">Gradle 8.7</a> at Mar 9, 2026, 11:39:42 PM</p>
 </div>
 </div>
 </body>

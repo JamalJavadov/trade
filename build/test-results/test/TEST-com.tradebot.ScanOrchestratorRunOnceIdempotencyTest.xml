@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.tradebot.ScanOrchestratorRunOnceIdempotencyTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:25" hostname="CamaltekiMacBook-Pro.local" time="0.001">
+<testsuite name="com.tradebot.ScanOrchestratorRunOnceIdempotencyTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:41" hostname="CamaltekiMacBook-Pro.local" time="0.001">
   <properties/>
   <testcase name="runOnceReturnsExistingRunningRunInsteadOfThrowingConflict()" classname="com.tradebot.ScanOrchestratorRunOnceIdempotencyTest" time="0.001"/>
-  <system-out><![CDATA[2026-03-08T15:34:25.122+04:00  INFO 98901 --- [    Test worker] com.tradebot.service.ScanOrchestrator    : Manual scan request deduplicated: runId=6bccc6d3-bbd2-4e5c-bba8-e90763422d25, status=ALREADY_RUNNING
+  <system-out><![CDATA[2026-03-09T23:39:41.691+04:00  INFO 84573 --- [    Test worker] com.tradebot.service.ScanOrchestrator    : Manual scan request deduplicated: runId=1e6bee4e-343b-4787-a0d3-b2a8ccc8611d, status=ALREADY_RUNNING
 ]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

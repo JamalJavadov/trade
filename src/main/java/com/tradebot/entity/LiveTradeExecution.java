@@ -17,6 +17,7 @@ import lombok.ToString;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -34,6 +35,12 @@ public class LiveTradeExecution {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Recommendation recommendation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private BudgetTargetSession session;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "trigger_mode", nullable = false)
@@ -69,15 +76,58 @@ public class LiveTradeExecution {
     @Column(name = "exchange_response_json", columnDefinition = "jsonb")
     private String exchangeResponseJson;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "entry_response_json", columnDefinition = "jsonb")
+    private String entryResponseJson;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "protection_response_json", columnDefinition = "jsonb")
+    private String protectionResponseJson;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "execution_state", nullable = false)
-    private LiveTradeExecutionState executionState = LiveTradeExecutionState.REQUESTED;
+    @Column(name = "execution_status", nullable = false)
+    private LiveTradeExecutionState executionStatus = LiveTradeExecutionState.CREATED;
 
     @Column(name = "error_code")
     private String errorCode;
 
     @Column(name = "error_message")
     private String errorMessage;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "error_details_json", columnDefinition = "jsonb")
+    private String errorDetailsJson;
+
+    @Column(name = "requires_intervention", nullable = false)
+    private boolean requiresIntervention;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "critical_issue_json", columnDefinition = "jsonb")
+    private String criticalIssueJson;
+
+    @Column(name = "reserved_margin_usdt", precision = 18, scale = 8)
+    private BigDecimal reservedMarginUsdt;
+
+    @Column(name = "requested_budget_slice_usdt", precision = 18, scale = 8)
+    private BigDecimal requestedBudgetSliceUsdt;
+
+    @Column(name = "requested_qty", precision = 30, scale = 8)
+    private BigDecimal requestedQty;
+
+    @Column(name = "actual_filled_qty", precision = 30, scale = 8)
+    private BigDecimal actualFilledQty;
+
+    @Column(name = "realized_gross_pnl_usdt", precision = 18, scale = 8)
+    private BigDecimal realizedGrossPnlUsdt;
+
+    @Column(name = "realized_fees_usdt", precision = 18, scale = 8)
+    private BigDecimal realizedFeesUsdt;
+
+    @Column(name = "realized_net_pnl_usdt", precision = 18, scale = 8)
+    private BigDecimal realizedNetPnlUsdt;
+
+    @Column(name = "close_reason")
+    private String closeReason;
 
     @Column(name = "entry_client_order_id")
     private String entryClientOrderId;
@@ -103,6 +153,9 @@ public class LiveTradeExecution {
     @Column(name = "emergency_close_order_id")
     private Long emergencyCloseOrderId;
 
+    @Column(name = "position_slot")
+    private Integer positionSlot;
+
     @Column(name = "reconcile_count", nullable = false)
     private int reconcileCount;
 
@@ -120,4 +173,20 @@ public class LiveTradeExecution {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    public BudgetTargetSession getBudgetTargetSession() {
+        return session;
+    }
+
+    public void setBudgetTargetSession(BudgetTargetSession budgetTargetSession) {
+        this.session = budgetTargetSession;
+    }
+
+    public LiveTradeExecutionState getExecutionState() {
+        return executionStatus;
+    }
+
+    public void setExecutionState(LiveTradeExecutionState executionState) {
+        this.executionStatus = executionState;
+    }
 }

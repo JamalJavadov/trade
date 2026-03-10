@@ -8,5 +8,13 @@ import java.util.UUID;
 
 public interface LiveTradeExecutionEventRepository extends JpaRepository<LiveTradeExecutionEvent, UUID> {
 
-    List<LiveTradeExecutionEvent> findByExecution_IdOrderByCreatedAtAsc(UUID executionId);
+    List<LiveTradeExecutionEvent> findByExecution_IdOrderByEventTsAsc(UUID executionId);
+
+    List<LiveTradeExecutionEvent> findByExecution_Session_IdOrderByEventTsAsc(UUID sessionId);
+
+    List<LiveTradeExecutionEvent> findByExecution_Session_IdOrderByEventTsDesc(UUID sessionId);
+
+    default List<LiveTradeExecutionEvent> findByExecution_IdOrderByCreatedAtAsc(UUID executionId) {
+        return findByExecution_IdOrderByEventTsAsc(executionId);
+    }
 }

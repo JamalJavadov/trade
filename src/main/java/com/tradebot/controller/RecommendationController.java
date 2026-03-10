@@ -1,6 +1,5 @@
 package com.tradebot.controller;
 
-import com.tradebot.dto.BinanceOrderFieldsDTO;
 import com.tradebot.dto.FeedbackRequestDTO;
 import com.tradebot.dto.LiveTradeExecutionDTO;
 import com.tradebot.dto.LiveTradeExecutionRequestDTO;
@@ -8,7 +7,6 @@ import com.tradebot.dto.LiveTradingPreflightDTO;
 import com.tradebot.dto.RecommendationDTO;
 import com.tradebot.dto.RecommendationPlaceabilityDTO;
 import com.tradebot.entity.Recommendation;
-import com.tradebot.entity.OrderFields;
 import com.tradebot.operator.RequiresPermission;
 import com.tradebot.repository.RecommendationRepository;
 import com.tradebot.security.LocalMutationGuard;
@@ -17,18 +15,26 @@ import com.tradebot.service.LiveTradingPreflightService;
 import com.tradebot.trace.TraceIdContext;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.web.bind.annotation.*;
-import lombok.RequiredArgsConstructor;
-import java.util.UUID;
-import java.time.Instant;
-import org.springframework.http.ResponseEntity;
 import com.tradebot.entity.TradeExecutionFeedback;
 import com.tradebot.repository.TradeExecutionFeedbackRepository;
 import com.tradebot.service.RecommendationPlaceabilityService;
 import com.tradebot.service.RecommendationQueryService;
 import com.tradebot.service.SuggestionBatchService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.Instant;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/recommendations")
@@ -43,7 +49,6 @@ public class RecommendationController {
     private final LiveTradingPreflightService liveTradingPreflightService;
     private final LiveTradingExecutionService liveTradingExecutionService;
     private final LocalMutationGuard localMutationGuard;
-    private final ObjectMapper objectMapper;
 
     @GetMapping("/latest")
     public ResponseEntity<RecommendationDTO> getLatest() {
@@ -55,31 +60,8 @@ public class RecommendationController {
     }
 
     @GetMapping("/{id}")
-    public RecommendationDTO getById(@PathVariable UUID id) throws Exception {
-        Recommendation rec = recommendationRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Recommendation not found: " + id));
-
-        RecommendationDTO dto = new RecommendationDTO();
-        dto.setId(rec.getId());
-        dto.setScanRunId(rec.getScanRun().getId());
-        dto.setSymbol(rec.getSymbol());
-        dto.setSide(rec.getSide());
-        dto.setRationaleText(rec.getRationaleText());
-        dto.setConfidenceScore(rec.getConfidenceScore());
-        dto.setCreatedAt(rec.getCreatedAt());
-        dto.setStatus(rec.getStatus());
-
-        OrderFields fields = rec.getOrderFields();
-        if (fields != null) {
-            dto.setEntryOrder(objectMapper.readValue(fields.getEntryOrderJson(), BinanceOrderFieldsDTO.class));
-            dto.setSlOrder(objectMapper.readValue(fields.getSlOrderJson(), BinanceOrderFieldsDTO.class));
-            dto.setTpOrder(objectMapper.readValue(fields.getTpOrderJson(), BinanceOrderFieldsDTO.class));
-            dto.setLeverageRecommendation(fields.getLeverageRecommendation());
-            dto.setPositionMode(fields.getPositionMode());
-            dto.setMarginMode(fields.getMarginMode());
-        }
-
-        return dto;
+    public RecommendationDTO getById(@PathVariable UUID id) {
+        return recommendationQueryService.getRecommendation(id);
     }
 
     @GetMapping("/{id}/placeability")

@@ -7,6 +7,7 @@ vi.mock('./hooks/usePermissions', () => ({
 }));
 
 vi.mock('./pages/DashboardPage', () => ({ DashboardPage: () => <div>dashboard-page</div> }));
+vi.mock('./pages/BudgetTargetAutoExecutionPage', () => ({ BudgetTargetAutoExecutionPage: () => <div>auto-session-page</div> }));
 vi.mock('./pages/RecommendationDetailPage', () => ({ RecommendationDetailPage: () => <div>recommendation-page</div> }));
 vi.mock('./pages/JournalPage', () => ({ JournalPage: () => <div>journal-page</div> }));
 vi.mock('./pages/AiPage', () => ({ AiPage: () => <div>ai-page</div> }));
@@ -52,5 +53,12 @@ describe('App routes', () => {
         render(<App />);
 
         expect(await screen.findByText('dashboard-page')).toBeInTheDocument();
+    });
+
+    it('resolves the auto-session route', async () => {
+        window.history.replaceState({}, '', '/auto-session');
+        render(<App />);
+
+        expect(await screen.findByText('auto-session-page')).toBeInTheDocument();
     });
 });

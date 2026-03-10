@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.OrderStateSyncServiceTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:41" hostname="CamaltekiMacBook-Pro.local" time="0.011">
+  <properties/>
+  <testcase name="reconcileMarksClosingWhenStopLossMissingButEmergencyCloseIsWorking()" classname="com.tradebot.OrderStateSyncServiceTest" time="0.003"/>
+  <testcase name="reconcileClosesClosingExecutionEvenIfProtectionOrdersStillExistButPositionIsFlat()" classname="com.tradebot.OrderStateSyncServiceTest" time="0.001"/>
+  <testcase name="reconcileMarksActiveAndRequiresInterventionWhenTakeProfitIsMissing()" classname="com.tradebot.OrderStateSyncServiceTest" time="0.001"/>
+  <testcase name="reconcileMarksClosedAndPersistsClosureRollups()" classname="com.tradebot.OrderStateSyncServiceTest" time="0.001"/>
+  <testcase name="reconcileFailsClosedWhenRealizedPnlCannotBeResolvedFromBinanceTruth()" classname="com.tradebot.OrderStateSyncServiceTest" time="0.001"/>
+  <testcase name="reconcileAutoHealsSessionOwnedActiveExecutionWhenExchangeReportsFlat()" classname="com.tradebot.OrderStateSyncServiceTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

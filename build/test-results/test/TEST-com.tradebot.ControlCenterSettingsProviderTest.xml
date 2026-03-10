@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.tradebot.ControlCenterSettingsProviderTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:23" hostname="CamaltekiMacBook-Pro.local" time="0.086">
+<testsuite name="com.tradebot.ControlCenterSettingsProviderTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:39" hostname="CamaltekiMacBook-Pro.local" time="0.08">
   <properties/>
-  <testcase name="patchMigratesLegacyLiveExecutionKeysAndRemovesStaleLiveTradingConfig()" classname="com.tradebot.ControlCenterSettingsProviderTest" time="0.077"/>
-  <testcase name="patchBackfillsMissingScanReviewBeforeValidationAndPersistsNormalizedState()" classname="com.tradebot.ControlCenterSettingsProviderTest" time="0.009"/>
+  <testcase name="patchNormalizesBudgetTargetAutoExecutionConcurrencyAndRejectsNonPositiveTarget()" classname="com.tradebot.ControlCenterSettingsProviderTest" time="0.067"/>
+  <testcase name="patchMigratesLegacyLiveExecutionKeysAndRemovesStaleLiveTradingConfig()" classname="com.tradebot.ControlCenterSettingsProviderTest" time="0.008"/>
+  <testcase name="patchBackfillsMissingScanReviewBeforeValidationAndPersistsNormalizedState()" classname="com.tradebot.ControlCenterSettingsProviderTest" time="0.005"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

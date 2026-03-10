@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.tradebot.ScanOrchestratorIntervalTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:25" hostname="CamaltekiMacBook-Pro.local" time="0.116">
+<testsuite name="com.tradebot.ScanOrchestratorIntervalTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:41" hostname="CamaltekiMacBook-Pro.local" time="0.133">
   <properties/>
-  <testcase name="scheduledDedupKeyChangesWhenWindowChanges()" classname="com.tradebot.ScanOrchestratorIntervalTest" time="0.116"/>
+  <testcase name="scheduledDedupKeyChangesWhenWindowChanges()" classname="com.tradebot.ScanOrchestratorIntervalTest" time="0.133"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

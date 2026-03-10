@@ -12,19 +12,16 @@ import {
 } from '../api/liveTradingApi';
 
 const POLLING_STATES = new Set([
-    'REQUESTED',
-    'SUBMITTING',
+    'CREATED',
+    'PREFLIGHT_VALIDATING',
+    'ENTRY_SUBMITTING',
     'ENTRY_SUBMITTED',
-    'ENTRY_PARTIALLY_FILLED',
     'ENTRY_FILLED',
     'PROTECTION_SUBMITTING',
-    'PROTECTION_SUBMITTED',
     'PROTECTION_ACTIVE',
-    'OPEN',
+    'ACTIVE',
+    'CLOSING',
     'RECONCILING',
-    'PENDING_RECONCILE',
-    'PROTECTION_FAILED',
-    'EMERGENCY_CLOSE_SUBMITTED',
 ]);
 
 interface RecommendationExecutionState {

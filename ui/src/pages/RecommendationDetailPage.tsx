@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
     AlertTriangle,
     ArrowLeft,
@@ -62,16 +62,16 @@ function sectionField(section: Record<string, unknown>, key: string): unknown {
 }
 
 function statusTone(state: string): string {
-    if (state === 'PROTECTION_ACTIVE' || state === 'OPEN' || state === 'DRY_RUN') {
+    if (state === 'PROTECTION_ACTIVE' || state === 'ACTIVE') {
         return 'border-emerald-700/50 bg-emerald-900/25 text-emerald-200';
     }
-    if (state === 'RECONCILED') {
+    if (state === 'CLOSED') {
         return 'border-emerald-700/50 bg-emerald-900/25 text-emerald-200';
     }
-    if (state === 'EMERGENCY_CLOSE_FILLED' || state === 'RECONCILING' || state === 'PENDING_RECONCILE') {
+    if (state === 'CLOSING' || state === 'RECONCILING') {
         return 'border-amber-700/50 bg-amber-900/30 text-amber-200';
     }
-    if (state === 'BLOCKED' || state === 'FAILED' || state === 'PROTECTION_FAILED' || state === 'EMERGENCY_CLOSE_FAILED') {
+    if (state === 'PREFLIGHT_REJECTED' || state === 'FAILED') {
         return 'border-rose-700/50 bg-rose-900/30 text-rose-200';
     }
     return 'border-sky-700/50 bg-sky-900/25 text-sky-200';
@@ -157,6 +157,7 @@ function ExecutionCard({ execution }: { execution: LiveTradeExecutionDTO }) {
     const emergencyCloseStatus = asString(sectionField(emergencyClose, 'status'))
         ?? (asBoolean(emergencyClose.submitted) === false ? 'FAILED_TO_SUBMIT' : 'n/a');
     const positionQty = sectionField(position, 'positionAmt') ?? reconciliation.positionQuantity;
+    const sessionOwned = execution.triggerMode === 'AUTO_SESSION' || Boolean(execution.budgetTargetSessionId);
 
     return (
         <div className="mt-5 rounded-xl border border-slate-700 bg-slate-950/60 p-5">
@@ -164,8 +165,20 @@ function ExecutionCard({ execution }: { execution: LiveTradeExecutionDTO }) {
                 <div>
                     <h3 className="text-lg font-semibold text-white">Latest Execution Attempt</h3>
                     <p className="mt-1 text-sm text-slate-400">
-                        Triggered via manual button only. Backend state is authoritative for Binance confirmation.
+                        {sessionOwned
+                            ? 'Triggered by the budget-target auto-execution session. Backend state is authoritative for Binance confirmation.'
+                            : 'Triggered from the manual execute-live panel on this recommendation. Backend state is authoritative for Binance confirmation.'}
                     </p>
+                    {sessionOwned && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                            <span className="rounded-full border border-sky-700/50 bg-sky-900/20 px-2 py-1 font-semibold uppercase tracking-wider text-sky-200">
+                                Auto Session
+                            </span>
+                            <Link to="/dashboard" className="text-sky-300 hover:text-sky-200">
+                                View dashboard session status
+                            </Link>
+                        </div>
+                    )}
                 </div>
                 <span className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider ${statusTone(execution.executionState)}`}>
                     {execution.executionState}
@@ -176,7 +189,7 @@ function ExecutionCard({ execution }: { execution: LiveTradeExecutionDTO }) {
                 <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
                     <p className="text-xs uppercase tracking-wider text-slate-400">Mode</p>
                     <p className={`mt-2 text-sm font-semibold ${execution.dryRun ? 'text-amber-300' : 'text-red-300'}`}>
-                        {execution.dryRun ? 'DRY RUN' : 'REAL'}
+                        {execution.dryRun ? 'DRY RUN' : (sessionOwned ? 'REAL · AUTO' : 'REAL · MANUAL')}
                     </p>
                 </div>
                 <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
@@ -192,6 +205,20 @@ function ExecutionCard({ execution }: { execution: LiveTradeExecutionDTO }) {
                     <p className="mt-2 break-all font-mono text-xs text-slate-200">{execution.traceId ?? 'n/a'}</p>
                 </div>
             </div>
+
+            {(execution.realizedNetPnlUsdt != null || execution.closeReason) && (
+                <div className="mt-4 rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-200">
+                    <p className="text-xs uppercase tracking-wider text-slate-400">Outcome</p>
+                    <div className="mt-2 grid gap-2 md:grid-cols-3">
+                        <p>Realized gross: {formatMaybe(execution.realizedGrossPnlUsdt)}</p>
+                        <p>Fees: {formatMaybe(execution.realizedFeesUsdt)}</p>
+                        <p>Realized net: {formatMaybe(execution.realizedNetPnlUsdt)}</p>
+                        <p>Close reason: {execution.closeReason ?? 'n/a'}</p>
+                        <p>Reserved margin: {formatMaybe(execution.reservedMarginUsdt)}</p>
+                        <p>Session ID: {execution.budgetTargetSessionId ?? 'n/a'}</p>
+                    </div>
+                </div>
+            )}
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
@@ -227,15 +254,31 @@ function ExecutionCard({ execution }: { execution: LiveTradeExecutionDTO }) {
                 />
                 <ExecutionStatusPanel
                     label="Emergency Close"
-                    title={execution.executionState === 'EMERGENCY_CLOSE_FILLED' ? 'FILLED' : emergencyCloseStatus}
+                    title={execution.executionState === 'CLOSED' && execution.closeReason === 'EMERGENCY_CLOSE' ? 'FILLED' : emergencyCloseStatus}
                     description={`orderId=${formatMaybe(sectionField(emergencyClose, 'orderId'))} | qty=${formatMaybe(sectionField(emergencyClose, 'executedQty'))}`}
                 />
                 <ExecutionStatusPanel
                     label="Reconciliation"
-                    title={execution.executionState === 'RECONCILING' || execution.executionState === 'PENDING_RECONCILE' ? 'IN PROGRESS' : 'LATEST'}
+                    title={execution.executionState === 'RECONCILING' ? 'IN PROGRESS' : 'LATEST'}
                     description={`position=${formatMaybe(positionQty)} | hasPosition=${formatMaybe(hasPosition)}${emergencyCloseWorking != null ? ` | closeWorking=${String(emergencyCloseWorking).toUpperCase()}` : ''}`}
                 />
             </div>
+
+            {(execution.requiresIntervention || execution.criticalIssue) && (
+                <div className="mt-4 rounded-lg border border-amber-600/60 bg-amber-900/25 p-3 text-sm text-amber-100">
+                    <p className="font-semibold text-amber-200">
+                        {execution.criticalIssue?.code ?? 'REQUIRES_INTERVENTION'}
+                    </p>
+                    <p className="mt-1">
+                        {execution.criticalIssue?.message ?? 'Live execution requires operator attention.'}
+                    </p>
+                    {execution.criticalIssue?.raisedAt && (
+                        <p className="mt-1 text-xs text-amber-300">
+                            Raised: {formatInstant(execution.criticalIssue.raisedAt)}
+                        </p>
+                    )}
+                </div>
+            )}
 
             {(execution.errorCode || execution.errorMessage) && (
                 <div className="mt-4 rounded-lg border border-rose-700/50 bg-rose-900/20 p-3 text-sm text-rose-200">
@@ -478,8 +521,8 @@ export const RecommendationDetailPage: React.FC = () => {
                             <h4 className="font-bold text-yellow-300">Recommendation Review</h4>
                             <p className="mt-1 text-sm text-yellow-100/75">
                                 Scan, autoscan, and recommendation generation still do not place live Binance orders.
-                                The payloads below remain the manual review path. Real execution is only possible from the
-                                dedicated live-execution panel after explicit confirmation.
+                                The payloads below remain the manual review path. Real execution from this page stays
+                                manual, while budget-target auto sessions run from the Auto Session page and reuse the same backend checks.
                             </p>
                         </div>
                     </div>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.tradebot.CandleParserTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:23" hostname="CamaltekiMacBook-Pro.local" time="0.0">
+<testsuite name="com.tradebot.CandleParserTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:39" hostname="CamaltekiMacBook-Pro.local" time="0.0">
   <properties/>
   <testcase name="shouldSkipInvalidCandleData()" classname="com.tradebot.CandleParserTest" time="0.0"/>
   <testcase name="shouldParseValidCandleData()" classname="com.tradebot.CandleParserTest" time="0.0"/>

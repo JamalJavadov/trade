@@ -39,7 +39,7 @@ public class RecommendationPlaceabilityService {
     public RecommendationPlaceabilityDTO evaluate(UUID recommendationId) {
         RecommendationPlaceabilityDTO dto = baseResponse(recommendationId);
 
-        Optional<Recommendation> maybeRec = recommendationRepository.findById(recommendationId);
+        Optional<Recommendation> maybeRec = recommendationRepository.findDetailedById(recommendationId);
         if (maybeRec.isEmpty()) {
             return notPlaceable(dto, "NOT_FOUND", "Recommendation not found.");
         }

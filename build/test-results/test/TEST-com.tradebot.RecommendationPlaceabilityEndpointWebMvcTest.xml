@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.tradebot.RecommendationPlaceabilityEndpointWebMvcTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:24" hostname="CamaltekiMacBook-Pro.local" time="0.015">
+<testsuite name="com.tradebot.RecommendationPlaceabilityEndpointWebMvcTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:41" hostname="CamaltekiMacBook-Pro.local" time="0.013">
   <properties/>
   <testcase name="invalidUuidReturnsValidationNotInternal()" classname="com.tradebot.RecommendationPlaceabilityEndpointWebMvcTest" time="0.003"/>
-  <testcase name="endpointReturnsStableJsonForValidUuid()" classname="com.tradebot.RecommendationPlaceabilityEndpointWebMvcTest" time="0.011"/>
-  <system-out><![CDATA[2026-03-08T15:34:24.779+04:00  INFO 98901 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.RecommendationPlaceabilityEndpointWebMvcTest]: RecommendationPlaceabilityEndpointWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-2026-03-08T15:34:24.781+04:00  INFO 98901 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.RecommendationPlaceabilityEndpointWebMvcTest
+  <testcase name="endpointReturnsStableJsonForValidUuid()" classname="com.tradebot.RecommendationPlaceabilityEndpointWebMvcTest" time="0.01"/>
+  <system-out><![CDATA[2026-03-09T23:39:41.333+04:00  INFO 84573 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.RecommendationPlaceabilityEndpointWebMvcTest]: RecommendationPlaceabilityEndpointWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-09T23:39:41.334+04:00  INFO 84573 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.RecommendationPlaceabilityEndpointWebMvcTest
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -14,13 +14,13 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.2.4)
 
-2026-03-08T15:34:24.787+04:00  INFO 98901 --- [    Test worker] mmendationPlaceabilityEndpointWebMvcTest : Starting RecommendationPlaceabilityEndpointWebMvcTest using Java 21.0.9 with PID 98901 (started by camal in /Users/camal/Documents/trade/trade bot)
-2026-03-08T15:34:24.787+04:00  INFO 98901 --- [    Test worker] mmendationPlaceabilityEndpointWebMvcTest : No active profile set, falling back to 1 default profile: "default"
-2026-03-08T15:34:24.852+04:00  INFO 98901 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
-2026-03-08T15:34:24.852+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
-2026-03-08T15:34:24.853+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
-2026-03-08T15:34:24.855+04:00  INFO 98901 --- [    Test worker] mmendationPlaceabilityEndpointWebMvcTest : Started RecommendationPlaceabilityEndpointWebMvcTest in 0.073 seconds (process running for 4.641)
-2026-03-08T15:34:24.857+04:00  WARN 98901 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: a16e3332-0d8b-4dd0-9504-8a00a7c06df2] Type mismatch at /api/v1/recommendations/not-a-uuid/placeability: Failed to convert value of type 'java.lang.String' to required type 'java.util.UUID'; Invalid UUID string: not-a-uuid
+2026-03-09T23:39:41.338+04:00  INFO 84573 --- [    Test worker] mmendationPlaceabilityEndpointWebMvcTest : Starting RecommendationPlaceabilityEndpointWebMvcTest using Java 21.0.9 with PID 84573 (started by camal in /Users/camal/Documents/making money/trade/trade bot)
+2026-03-09T23:39:41.339+04:00  INFO 84573 --- [    Test worker] mmendationPlaceabilityEndpointWebMvcTest : No active profile set, falling back to 1 default profile: "default"
+2026-03-09T23:39:41.403+04:00  INFO 84573 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-09T23:39:41.403+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-09T23:39:41.403+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-09T23:39:41.404+04:00  INFO 84573 --- [    Test worker] mmendationPlaceabilityEndpointWebMvcTest : Started RecommendationPlaceabilityEndpointWebMvcTest in 0.069 seconds (process running for 5.154)
+2026-03-09T23:39:41.407+04:00  WARN 84573 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 390406c3-d263-45f2-8011-3e923806492a] Type mismatch at /api/v1/recommendations/not-a-uuid/placeability: Failed to convert value of type 'java.lang.String' to required type 'java.util.UUID'; Invalid UUID string: not-a-uuid
 ]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

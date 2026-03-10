@@ -70,30 +70,78 @@ export interface LiveTradeExecutionEventDTO {
     id: string | null;
     eventType: string;
     eventStatus: string;
+    before: Record<string, unknown>;
+    after: Record<string, unknown>;
+    notes: string | null;
+    traceId: string | null;
+    eventTs: string | null;
     message: string;
     errorCode: string | null;
     payload: Record<string, unknown>;
     createdAt: string | null;
 }
 
+export interface BudgetTargetSyncHealthDTO {
+    status: string | null;
+    lastSyncAt: string | null;
+    lastSuccessfulSyncAt: string | null;
+    latestSyncType: string | null;
+    latestErrorCode: string | null;
+    latestErrorMessage: string | null;
+    divergenceDetected: boolean;
+    requiresIntervention: boolean;
+    gateNewTrades: boolean;
+    gateReasonCode: string | null;
+    gateReasonMessage: string | null;
+    openPositionCount: number;
+    activeOpenOrderCount: number;
+    activeProtectionOrderCount: number;
+    closeAllInProgress: boolean;
+    affectedExecutionIds: string[];
+}
+
 export interface LiveTradeExecutionDTO {
+    criticalIssue?: {
+        code: string | null;
+        message: string | null;
+        details: Record<string, unknown>;
+        raisedAt: string | null;
+    } | null;
     id: string;
     recommendationId: string;
+    sessionId?: string | null;
+    budgetTargetSessionId?: string | null;
     symbol: string;
     side: string;
     triggerMode: string;
     operatorId: string | null;
     traceId: string | null;
     dryRun: boolean;
+    executionStatus?: string;
     executionState: string;
     errorCode: string | null;
+    errorDetails?: Record<string, unknown>;
     errorMessage: string | null;
+    requiresIntervention?: boolean;
+    reservedMarginUsdt?: number | null;
+    requestedBudgetSliceUsdt?: number | null;
+    requestedQty?: number | null;
+    actualFilledQty?: number | null;
+    realizedGrossPnlUsdt?: number | null;
+    realizedFeesUsdt?: number | null;
+    realizedNetPnlUsdt?: number | null;
+    unrealizedNetPnlUsdt?: number | null;
+    entryPrice?: number | null;
+    markPrice?: number | null;
+    closeReason?: string | null;
+    positionSlot?: number | null;
     createdAt: string | null;
     updatedAt: string | null;
     submittedAt: string | null;
     completedAt: string | null;
     lastReconciledAt: string | null;
     reconcileCount: number;
+    syncHealth?: BudgetTargetSyncHealthDTO | null;
     orderRefs: {
         entryClientOrderId: string | null;
         slClientOrderId: string | null;
@@ -106,6 +154,8 @@ export interface LiveTradeExecutionDTO {
     };
     payloadSnapshot: Record<string, unknown>;
     preflight: Record<string, unknown>;
+    entryResponse: Record<string, unknown>;
+    protectionResponse: Record<string, unknown>;
     exchangeResponse: Record<string, unknown>;
     events: LiveTradeExecutionEventDTO[];
 }
@@ -246,34 +296,96 @@ function normalizeExecutionEvent(value: unknown): LiveTradeExecutionEventDTO {
         id: typeof raw.id === 'string' ? raw.id : null,
         eventType: typeof raw.eventType === 'string' ? raw.eventType : 'UNKNOWN',
         eventStatus: typeof raw.eventStatus === 'string' ? raw.eventStatus : 'UNKNOWN',
-        message: typeof raw.message === 'string' ? raw.message : 'No event message.',
+        before: toObject(raw.before),
+        after: toObject(raw.after),
+        notes: toStringValue(raw.notes),
+        traceId: toStringValue(raw.traceId),
+        eventTs: toStringValue(raw.eventTs),
+        message: typeof raw.message === 'string'
+            ? raw.message
+            : typeof raw.notes === 'string' ? raw.notes : 'No event message.',
         errorCode: toStringValue(raw.errorCode),
         payload: toObject(raw.payload),
         createdAt: toStringValue(raw.createdAt),
     };
 }
 
-function normalizeExecution(value: unknown): LiveTradeExecutionDTO {
+export function normalizeSyncHealth(value: unknown): BudgetTargetSyncHealthDTO | null {
+    if (!isRecord(value)) {
+        return null;
+    }
+    return {
+        status: toStringValue(value.status),
+        lastSyncAt: toStringValue(value.lastSyncAt),
+        lastSuccessfulSyncAt: toStringValue(value.lastSuccessfulSyncAt),
+        latestSyncType: toStringValue(value.latestSyncType),
+        latestErrorCode: toStringValue(value.latestErrorCode),
+        latestErrorMessage: toStringValue(value.latestErrorMessage),
+        divergenceDetected: toBoolean(value.divergenceDetected),
+        requiresIntervention: toBoolean(value.requiresIntervention),
+        gateNewTrades: toBoolean(value.gateNewTrades),
+        gateReasonCode: toStringValue(value.gateReasonCode),
+        gateReasonMessage: toStringValue(value.gateReasonMessage),
+        openPositionCount: toNumber(value.openPositionCount, 0),
+        activeOpenOrderCount: toNumber(value.activeOpenOrderCount, 0),
+        activeProtectionOrderCount: toNumber(value.activeProtectionOrderCount, 0),
+        closeAllInProgress: toBoolean(value.closeAllInProgress),
+        affectedExecutionIds: Array.isArray(value.affectedExecutionIds)
+            ? value.affectedExecutionIds.filter((item): item is string => typeof item === 'string')
+            : [],
+    };
+}
+
+export function normalizeExecution(value: unknown): LiveTradeExecutionDTO {
     const raw = isRecord(value) ? value : {};
     const orderRefs = isRecord(raw.orderRefs) ? raw.orderRefs : {};
+    const criticalIssue = isRecord(raw.criticalIssue) ? raw.criticalIssue : null;
+    const exchangeResponse = toObject(raw.exchangeResponse);
+    const position = isRecord(exchangeResponse.position) ? exchangeResponse.position : {};
     return {
+        criticalIssue: criticalIssue ? {
+            code: toStringValue(criticalIssue.code),
+            message: toStringValue(criticalIssue.message),
+            details: toObject(criticalIssue.details),
+            raisedAt: toStringValue(criticalIssue.raisedAt),
+        } : null,
         id: typeof raw.id === 'string' ? raw.id : '',
         recommendationId: typeof raw.recommendationId === 'string' ? raw.recommendationId : '',
+        sessionId: toStringValue(raw.sessionId),
+        budgetTargetSessionId: toStringValue(raw.budgetTargetSessionId),
         symbol: typeof raw.symbol === 'string' ? raw.symbol : '',
         side: typeof raw.side === 'string' ? raw.side : '',
         triggerMode: typeof raw.triggerMode === 'string' ? raw.triggerMode : 'UNKNOWN',
         operatorId: toStringValue(raw.operatorId),
         traceId: toStringValue(raw.traceId),
         dryRun: toBoolean(raw.dryRun),
+        executionStatus: typeof raw.executionStatus === 'string'
+            ? raw.executionStatus
+            : typeof raw.executionState === 'string' ? raw.executionState : 'UNKNOWN',
         executionState: typeof raw.executionState === 'string' ? raw.executionState : 'UNKNOWN',
         errorCode: toStringValue(raw.errorCode),
+        errorDetails: toObject(raw.errorDetails),
         errorMessage: toStringValue(raw.errorMessage),
+        requiresIntervention: toBoolean(raw.requiresIntervention),
+        reservedMarginUsdt: toNumberOrNull(raw.reservedMarginUsdt),
+        requestedBudgetSliceUsdt: toNumberOrNull(raw.requestedBudgetSliceUsdt),
+        requestedQty: toNumberOrNull(raw.requestedQty),
+        actualFilledQty: toNumberOrNull(raw.actualFilledQty),
+        realizedGrossPnlUsdt: toNumberOrNull(raw.realizedGrossPnlUsdt),
+        realizedFeesUsdt: toNumberOrNull(raw.realizedFeesUsdt),
+        realizedNetPnlUsdt: toNumberOrNull(raw.realizedNetPnlUsdt),
+        unrealizedNetPnlUsdt: toNumberOrNull(raw.unrealizedNetPnlUsdt) ?? toNumberOrNull(position.unRealizedProfit),
+        entryPrice: toNumberOrNull(raw.entryPrice) ?? toNumberOrNull(position.entryPrice),
+        markPrice: toNumberOrNull(raw.markPrice) ?? toNumberOrNull(position.markPrice),
+        closeReason: toStringValue(raw.closeReason),
+        positionSlot: toNumberOrNull(raw.positionSlot),
         createdAt: toStringValue(raw.createdAt),
         updatedAt: toStringValue(raw.updatedAt),
         submittedAt: toStringValue(raw.submittedAt),
         completedAt: toStringValue(raw.completedAt),
         lastReconciledAt: toStringValue(raw.lastReconciledAt),
         reconcileCount: toNumber(raw.reconcileCount, 0),
+        syncHealth: normalizeSyncHealth(raw.syncHealth),
         orderRefs: {
             entryClientOrderId: toStringValue(orderRefs.entryClientOrderId),
             slClientOrderId: toStringValue(orderRefs.slClientOrderId),
@@ -288,7 +400,9 @@ function normalizeExecution(value: unknown): LiveTradeExecutionDTO {
         },
         payloadSnapshot: toObject(raw.payloadSnapshot),
         preflight: toObject(raw.preflight),
-        exchangeResponse: toObject(raw.exchangeResponse),
+        entryResponse: toObject(raw.entryResponse),
+        protectionResponse: toObject(raw.protectionResponse),
+        exchangeResponse,
         events: Array.isArray(raw.events) ? raw.events.map(normalizeExecutionEvent) : [],
     };
 }

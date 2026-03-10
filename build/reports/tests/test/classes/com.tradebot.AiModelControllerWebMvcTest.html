@@ -41,7 +41,7 @@
 </td>
 <td>
 <div class="infoBox" id="duration">
-<div class="counter">0.041s</div>
+<div class="counter">0.038s</div>
 <p>duration</p>
 </div>
 </td>
@@ -84,17 +84,17 @@
 </tr>
 <tr>
 <td class="success">testCallReturnsDummyPayload()</td>
-<td class="success">0.014s</td>
+<td class="success">0.013s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
 <td class="success">updateModelsReturnsUpdatedResponse()</td>
-<td class="success">0.005s</td>
+<td class="success">0.002s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
 <td class="success">updateModelsWhenControlsDisabledReturnsConflict()</td>
-<td class="success">0.007s</td>
+<td class="success">0.008s</td>
 <td class="success">passed</td>
 </tr>
 </table>
@@ -102,8 +102,8 @@
 <div id="tab1" class="tab">
 <h2>Standard output</h2>
 <span class="code">
-<pre>2026-03-08T15:34:22.554+04:00  INFO 98901 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.AiModelControllerWebMvcTest]: AiModelControllerWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-2026-03-08T15:34:22.557+04:00  INFO 98901 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.AiModelControllerWebMvcTest
+<pre>2026-03-09T23:39:38.754+04:00  INFO 84573 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.AiModelControllerWebMvcTest]: AiModelControllerWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-09T23:39:38.756+04:00  INFO 84573 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.AiModelControllerWebMvcTest
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -113,13 +113,13 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.2.4)
 
-2026-03-08T15:34:22.565+04:00  INFO 98901 --- [    Test worker] c.tradebot.AiModelControllerWebMvcTest   : Starting AiModelControllerWebMvcTest using Java 21.0.9 with PID 98901 (started by camal in /Users/camal/Documents/trade/trade bot)
-2026-03-08T15:34:22.565+04:00  INFO 98901 --- [    Test worker] c.tradebot.AiModelControllerWebMvcTest   : No active profile set, falling back to 1 default profile: &quot;default&quot;
-2026-03-08T15:34:22.679+04:00  INFO 98901 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
-2026-03-08T15:34:22.679+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
-2026-03-08T15:34:22.680+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
-2026-03-08T15:34:22.684+04:00  INFO 98901 --- [    Test worker] c.tradebot.AiModelControllerWebMvcTest   : Started AiModelControllerWebMvcTest in 0.125 seconds (process running for 2.47)
-2026-03-08T15:34:22.717+04:00 ERROR 98901 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: bfbe4725-dfc5-4048-b865-847c4ce8ebc0] IllegalStateException at /api/v1/ai/models: AI model controls are disabled for mode LIVE
+2026-03-09T23:39:38.764+04:00  INFO 84573 --- [    Test worker] c.tradebot.AiModelControllerWebMvcTest   : Starting AiModelControllerWebMvcTest using Java 21.0.9 with PID 84573 (started by camal in /Users/camal/Documents/making money/trade/trade bot)
+2026-03-09T23:39:38.764+04:00  INFO 84573 --- [    Test worker] c.tradebot.AiModelControllerWebMvcTest   : No active profile set, falling back to 1 default profile: &quot;default&quot;
+2026-03-09T23:39:38.878+04:00  INFO 84573 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-09T23:39:38.878+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-09T23:39:38.879+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 1 ms
+2026-03-09T23:39:38.881+04:00  INFO 84573 --- [    Test worker] c.tradebot.AiModelControllerWebMvcTest   : Started AiModelControllerWebMvcTest in 0.124 seconds (process running for 2.63)
+2026-03-09T23:39:38.914+04:00 ERROR 84573 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: a8cfe968-6b93-48fa-93b6-d59084d86203] IllegalStateException at /api/v1/ai/models: AI model controls are disabled for mode LIVE
 
 java.lang.IllegalStateException: AI model controls are disabled for mode LIVE
 	at com.tradebot.service.AiModelSettingsService.updateLiveSettings(AiModelSettingsService.java:53) ~[main/:na]
@@ -252,7 +252,7 @@ java.lang.IllegalStateException: AI model controls are disabled for mode LIVE
 <input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
 </label>
 </div>Generated by 
-<a href="http://www.gradle.org">Gradle 8.7</a> at Mar 8, 2026, 3:34:25 PM</p>
+<a href="http://www.gradle.org">Gradle 8.7</a> at Mar 9, 2026, 11:39:42 PM</p>
 </div>
 </div>
 </body>

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,6 +27,12 @@ public class RecommendationQueryService {
     public RecommendationDTO getLatestRecommendation() {
         Optional<Recommendation> latest = recommendationRepository.findFirstByOrderByCreatedAtDesc();
         return latest.map(this::toDtoSafe).orElse(null);
+    }
+
+    public RecommendationDTO getRecommendation(UUID id) {
+        Recommendation recommendation = recommendationRepository.findDetailedById(id)
+                .orElseThrow(() -> new NoSuchElementException("Recommendation not found: " + id));
+        return toDtoSafe(recommendation);
     }
 
     private RecommendationDTO toDtoSafe(Recommendation rec) {

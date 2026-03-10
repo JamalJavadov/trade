@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.tradebot.OperatorPermissionEnforcementWebMvcTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:24" hostname="CamaltekiMacBook-Pro.local" time="0.003">
+<testsuite name="com.tradebot.OperatorPermissionEnforcementWebMvcTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:41" hostname="CamaltekiMacBook-Pro.local" time="0.003">
   <properties/>
   <testcase name="disabledPermissionBlocksEndpointWithForbiddenPermissionError()" classname="com.tradebot.OperatorPermissionEnforcementWebMvcTest" time="0.003"/>
-  <system-out><![CDATA[2026-03-08T15:34:24.431+04:00  INFO 98901 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.OperatorPermissionEnforcementWebMvcTest]: OperatorPermissionEnforcementWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-2026-03-08T15:34:24.433+04:00  INFO 98901 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.OperatorPermissionEnforcementWebMvcTest
+  <system-out><![CDATA[2026-03-09T23:39:41.057+04:00  INFO 84573 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.OperatorPermissionEnforcementWebMvcTest]: OperatorPermissionEnforcementWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-09T23:39:41.058+04:00  INFO 84573 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.OperatorPermissionEnforcementWebMvcTest
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -13,13 +13,13 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.2.4)
 
-2026-03-08T15:34:24.441+04:00  INFO 98901 --- [    Test worker] .OperatorPermissionEnforcementWebMvcTest : Starting OperatorPermissionEnforcementWebMvcTest using Java 21.0.9 with PID 98901 (started by camal in /Users/camal/Documents/trade/trade bot)
-2026-03-08T15:34:24.441+04:00  INFO 98901 --- [    Test worker] .OperatorPermissionEnforcementWebMvcTest : No active profile set, falling back to 1 default profile: "default"
-2026-03-08T15:34:24.524+04:00  INFO 98901 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
-2026-03-08T15:34:24.524+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
-2026-03-08T15:34:24.524+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
-2026-03-08T15:34:24.527+04:00  INFO 98901 --- [    Test worker] .OperatorPermissionEnforcementWebMvcTest : Started OperatorPermissionEnforcementWebMvcTest in 0.093 seconds (process running for 4.313)
-2026-03-08T15:34:24.529+04:00  WARN 98901 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: f20b11de-4be6-4200-8c7e-c9f2552ebd38] Forbidden permission at /api/v1/scans/run-once: permission=scan.run_once
+2026-03-09T23:39:41.064+04:00  INFO 84573 --- [    Test worker] .OperatorPermissionEnforcementWebMvcTest : Starting OperatorPermissionEnforcementWebMvcTest using Java 21.0.9 with PID 84573 (started by camal in /Users/camal/Documents/making money/trade/trade bot)
+2026-03-09T23:39:41.064+04:00  INFO 84573 --- [    Test worker] .OperatorPermissionEnforcementWebMvcTest : No active profile set, falling back to 1 default profile: "default"
+2026-03-09T23:39:41.132+04:00  INFO 84573 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-09T23:39:41.132+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-09T23:39:41.132+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-09T23:39:41.134+04:00  INFO 84573 --- [    Test worker] .OperatorPermissionEnforcementWebMvcTest : Started OperatorPermissionEnforcementWebMvcTest in 0.075 seconds (process running for 4.883)
+2026-03-09T23:39:41.136+04:00  WARN 84573 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 882132d6-e40a-4472-a29f-7e961364be79] Forbidden permission at /api/v1/scans/run-once: permission=scan.run_once
 ]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

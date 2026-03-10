@@ -1,6 +1,5 @@
 package com.tradebot;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tradebot.controller.RecommendationController;
 import com.tradebot.controller.ScanController;
 import com.tradebot.exception.GlobalExceptionHandler;
@@ -35,19 +34,19 @@ class NotFoundContractsWebMvcTest {
     @Test
     void missingRecommendationReturns404Envelope() throws Exception {
         RecommendationRepository recommendationRepository = mock(RecommendationRepository.class);
-        when(recommendationRepository.findById(UUID.fromString("00000000-0000-0000-0000-000000000001")))
-                .thenReturn(Optional.empty());
+        RecommendationQueryService recommendationQueryService = mock(RecommendationQueryService.class);
+        when(recommendationQueryService.getRecommendation(UUID.fromString("00000000-0000-0000-0000-000000000001")))
+                .thenThrow(new NoSuchElementException("Recommendation not found: 00000000-0000-0000-0000-000000000001"));
 
         RecommendationController controller = new RecommendationController(
                 recommendationRepository,
                 mock(TradeExecutionFeedbackRepository.class),
                 mock(SuggestionBatchService.class),
                 mock(RecommendationPlaceabilityService.class),
-                mock(RecommendationQueryService.class),
+                recommendationQueryService,
                 mock(LiveTradingPreflightService.class),
                 mock(LiveTradingExecutionService.class),
-                mock(LocalMutationGuard.class),
-                new ObjectMapper());
+                mock(LocalMutationGuard.class));
 
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())

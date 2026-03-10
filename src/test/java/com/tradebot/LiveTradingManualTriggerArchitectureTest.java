@@ -13,36 +13,40 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class LiveTradingManualTriggerArchitectureTest {
 
     @Test
-    void signedBinanceSubmissionMethodsAreOnlyUsedByManualExecutionService() throws IOException {
+    void signedBinanceTradingMutationsStayInsideTheLiveExecutionLayer() throws IOException {
         assertEquals(Set.of(
+                        "src/main/java/com/tradebot/client/SmokeBinanceClient.java",
                         "src/main/java/com/tradebot/client/BinanceClient.java",
-                        "src/main/java/com/tradebot/service/LiveTradingExecutionService.java"),
+                        "src/main/java/com/tradebot/service/LiveExecutionEngineService.java"),
                 filesContaining("submitOrder("));
         assertEquals(Set.of(
+                        "src/main/java/com/tradebot/client/SmokeBinanceClient.java",
                         "src/main/java/com/tradebot/client/BinanceClient.java",
-                        "src/main/java/com/tradebot/service/LiveTradingExecutionService.java"),
+                        "src/main/java/com/tradebot/service/LiveExecutionEngineService.java"),
                 filesContaining("submitAlgoOrder("));
         assertEquals(Set.of(
+                        "src/main/java/com/tradebot/client/SmokeBinanceClient.java",
                         "src/main/java/com/tradebot/client/BinanceClient.java",
-                        "src/main/java/com/tradebot/service/LiveTradingReconciliationService.java"),
+                        "src/main/java/com/tradebot/service/OrderStateSyncService.java"),
                 filesContaining("getAlgoOrder("));
         assertEquals(Set.of(
+                        "src/main/java/com/tradebot/client/SmokeBinanceClient.java",
                         "src/main/java/com/tradebot/client/BinanceClient.java",
-                        "src/main/java/com/tradebot/service/LiveTradingReconciliationService.java"),
+                        "src/main/java/com/tradebot/service/OrderStateSyncService.java"),
                 filesContaining("getOpenAlgoOrders("));
         assertEquals(Set.of(
+                        "src/main/java/com/tradebot/client/SmokeBinanceClient.java",
                         "src/main/java/com/tradebot/client/BinanceClient.java",
-                        "src/main/java/com/tradebot/service/LiveTradingExecutionService.java",
-                        "src/main/java/com/tradebot/service/LiveTradingReconciliationService.java"),
+                        "src/main/java/com/tradebot/service/OrderStateSyncService.java"),
                 filesContaining("getPositionRisk("));
         assertEquals(Set.of(
-                        "src/main/java/com/tradebot/service/LiveTradingExecutionService.java"),
+                        "src/main/java/com/tradebot/service/LiveExecutionEngineService.java"),
                 filesContaining("binanceClient.setLeverage("));
         assertEquals(Set.of(
-                        "src/main/java/com/tradebot/service/LiveTradingExecutionService.java"),
+                        "src/main/java/com/tradebot/service/LiveExecutionEngineService.java"),
                 filesContaining("binanceClient.ensureIsolatedMargin("));
         assertEquals(Set.of(
-                        "src/main/java/com/tradebot/service/LiveTradingExecutionService.java"),
+                        "src/main/java/com/tradebot/service/LiveExecutionEngineService.java"),
                 filesContaining("binanceClient.ensureOneWayPositionMode("));
     }
 

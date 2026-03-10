@@ -8,12 +8,14 @@
     {
       "name": "ai.openrouter",
       "type": "com.tradebot.config.AiProperties$OpenRouter",
-      "sourceType": "com.tradebot.config.AiProperties"
+      "sourceType": "com.tradebot.config.AiProperties",
+      "sourceMethod": "getOpenrouter()"
     },
     {
       "name": "ai.safety",
       "type": "com.tradebot.config.AiProperties$Safety",
-      "sourceType": "com.tradebot.config.AiProperties"
+      "sourceType": "com.tradebot.config.AiProperties",
+      "sourceMethod": "getSafety()"
     },
     {
       "name": "app",
@@ -23,32 +25,38 @@
     {
       "name": "app.binance",
       "type": "com.tradebot.config.AppProperties$Binance",
-      "sourceType": "com.tradebot.config.AppProperties"
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "getBinance()"
     },
     {
       "name": "app.budget",
       "type": "com.tradebot.config.AppProperties$Budget",
-      "sourceType": "com.tradebot.config.AppProperties"
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "getBudget()"
     },
     {
       "name": "app.openrouter",
       "type": "com.tradebot.config.AppProperties$OpenRouter",
-      "sourceType": "com.tradebot.config.AppProperties"
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "getOpenrouter()"
     },
     {
       "name": "app.risk",
       "type": "com.tradebot.config.AppProperties$Risk",
-      "sourceType": "com.tradebot.config.AppProperties"
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "getRisk()"
     },
     {
       "name": "app.scanner",
       "type": "com.tradebot.config.AppProperties$Scanner",
-      "sourceType": "com.tradebot.config.AppProperties"
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "getScanner()"
     },
     {
       "name": "app.strategy",
       "type": "com.tradebot.config.AppProperties$Strategy",
-      "sourceType": "com.tradebot.config.AppProperties"
+      "sourceType": "com.tradebot.config.AppProperties",
+      "sourceMethod": "getStrategy()"
     },
     {
       "name": "demo-ai",
@@ -58,22 +66,26 @@
     {
       "name": "demo-ai.routing",
       "type": "com.tradebot.config.DemoAiProperties$RoutingOverrides",
-      "sourceType": "com.tradebot.config.DemoAiProperties"
+      "sourceType": "com.tradebot.config.DemoAiProperties",
+      "sourceMethod": "getRouting()"
     },
     {
       "name": "demo-ai.routing.explainability",
       "type": "com.tradebot.config.DemoAiProperties$TaskRoutingOverride",
-      "sourceType": "com.tradebot.config.DemoAiProperties$RoutingOverrides"
+      "sourceType": "com.tradebot.config.DemoAiProperties$RoutingOverrides",
+      "sourceMethod": "getExplainability()"
     },
     {
       "name": "demo-ai.routing.suggestion",
       "type": "com.tradebot.config.DemoAiProperties$TaskRoutingOverride",
-      "sourceType": "com.tradebot.config.DemoAiProperties$RoutingOverrides"
+      "sourceType": "com.tradebot.config.DemoAiProperties$RoutingOverrides",
+      "sourceMethod": "getSuggestion()"
     },
     {
       "name": "demo-ai.routing.vision",
       "type": "com.tradebot.config.DemoAiProperties$VisionRoutingOverride",
-      "sourceType": "com.tradebot.config.DemoAiProperties$RoutingOverrides"
+      "sourceType": "com.tradebot.config.DemoAiProperties$RoutingOverrides",
+      "sourceMethod": "getVision()"
     },
     {
       "name": "demo-trading",
@@ -83,7 +95,8 @@
     {
       "name": "demo-trading.binance",
       "type": "com.tradebot.config.DemoTradingProperties$BinanceCredentials",
-      "sourceType": "com.tradebot.config.DemoTradingProperties"
+      "sourceType": "com.tradebot.config.DemoTradingProperties",
+      "sourceMethod": "getBinance()"
     }
   ],
   "properties": [
@@ -95,32 +108,27 @@
     {
       "name": "ai.openrouter.base-url",
       "type": "java.lang.String",
-      "sourceType": "com.tradebot.config.AiProperties$OpenRouter",
-      "defaultValue": "https:\/\/openrouter.ai\/api\/v1"
+      "sourceType": "com.tradebot.config.AiProperties$OpenRouter"
     },
     {
       "name": "ai.safety.max-input-chars",
       "type": "java.lang.Integer",
-      "sourceType": "com.tradebot.config.AiProperties$Safety",
-      "defaultValue": 20000
+      "sourceType": "com.tradebot.config.AiProperties$Safety"
     },
     {
       "name": "ai.safety.max-retries-per-call",
       "type": "java.lang.Integer",
-      "sourceType": "com.tradebot.config.AiProperties$Safety",
-      "defaultValue": 2
+      "sourceType": "com.tradebot.config.AiProperties$Safety"
     },
     {
       "name": "ai.safety.request-timeout-ms",
       "type": "java.lang.Integer",
-      "sourceType": "com.tradebot.config.AiProperties$Safety",
-      "defaultValue": 20000
+      "sourceType": "com.tradebot.config.AiProperties$Safety"
     },
     {
       "name": "ai.safety.require-strict-json-for-suggestion",
       "type": "java.lang.Boolean",
-      "sourceType": "com.tradebot.config.AiProperties$Safety",
-      "defaultValue": true
+      "sourceType": "com.tradebot.config.AiProperties$Safety"
     },
     {
       "name": "app.binance.api-key",
@@ -140,8 +148,7 @@
     {
       "name": "app.leverage",
       "type": "java.lang.Integer",
-      "sourceType": "com.tradebot.config.AppProperties",
-      "defaultValue": 5
+      "sourceType": "com.tradebot.config.AppProperties"
     },
     {
       "name": "app.openrouter.allowed-models",
@@ -156,14 +163,12 @@
     {
       "name": "app.openrouter.model",
       "type": "java.lang.String",
-      "sourceType": "com.tradebot.config.AppProperties$OpenRouter",
-      "defaultValue": "arcee-ai\/trinity-large-preview:free"
+      "sourceType": "com.tradebot.config.AppProperties$OpenRouter"
     },
     {
       "name": "app.openrouter.model-controls-enabled",
       "type": "java.lang.Boolean",
-      "sourceType": "com.tradebot.config.AppProperties$OpenRouter",
-      "defaultValue": false
+      "sourceType": "com.tradebot.config.AppProperties$OpenRouter"
     },
     {
       "name": "app.risk.equity-override-usdt",
@@ -183,38 +188,32 @@
     {
       "name": "app.scanner.exchange-info-max-in-memory-bytes",
       "type": "java.lang.Integer",
-      "sourceType": "com.tradebot.config.AppProperties$Scanner",
-      "defaultValue": 0
+      "sourceType": "com.tradebot.config.AppProperties$Scanner"
     },
     {
       "name": "app.scanner.interval-minutes",
       "type": "java.lang.Integer",
-      "sourceType": "com.tradebot.config.AppProperties$Scanner",
-      "defaultValue": 20
+      "sourceType": "com.tradebot.config.AppProperties$Scanner"
     },
     {
       "name": "app.scanner.top-n",
       "type": "java.lang.Integer",
-      "sourceType": "com.tradebot.config.AppProperties$Scanner",
-      "defaultValue": 300
+      "sourceType": "com.tradebot.config.AppProperties$Scanner"
     },
     {
       "name": "app.strategy.fractal-period",
       "type": "java.lang.Integer",
-      "sourceType": "com.tradebot.config.AppProperties$Strategy",
-      "defaultValue": 5
+      "sourceType": "com.tradebot.config.AppProperties$Strategy"
     },
     {
       "name": "app.strategy.invalidation-candles",
       "type": "java.lang.Integer",
-      "sourceType": "com.tradebot.config.AppProperties$Strategy",
-      "defaultValue": 5
+      "sourceType": "com.tradebot.config.AppProperties$Strategy"
     },
     {
       "name": "app.strategy.max-sweep-candles",
       "type": "java.lang.Integer",
-      "sourceType": "com.tradebot.config.AppProperties$Strategy",
-      "defaultValue": 3
+      "sourceType": "com.tradebot.config.AppProperties$Strategy"
     },
     {
       "name": "app.strategy.min-rr",
@@ -229,14 +228,12 @@
     {
       "name": "app.working-type",
       "type": "java.lang.String",
-      "sourceType": "com.tradebot.config.AppProperties",
-      "defaultValue": "MARK_PRICE"
+      "sourceType": "com.tradebot.config.AppProperties"
     },
     {
       "name": "demo-ai.enabled",
       "type": "java.lang.Boolean",
-      "sourceType": "com.tradebot.config.DemoAiProperties",
-      "defaultValue": true
+      "sourceType": "com.tradebot.config.DemoAiProperties"
     },
     {
       "name": "demo-ai.routing.explainability.fallback-models",

@@ -61,6 +61,20 @@ export interface ControlCenterConfig {
     liveExecution: {
         readOnly: boolean;
     };
+    budgetTargetAutoExecution: {
+        enabled: boolean;
+        armed: boolean;
+        readOnly: boolean;
+        maxConcurrentPositions: number;
+        defaultBudgetUsdt: number;
+        defaultTargetProfitUsdt: number;
+        allowNewSessionStart: boolean;
+        allowCloseAllOnTarget: boolean;
+        killSwitch: boolean;
+        requireBinanceHealthPass: boolean;
+        requireOperatorConfirmationForStop: boolean;
+        sessionTimeoutMinutes: number;
+    };
     strategyLocks: {
         executionTf: string;
         biasTf: string;
@@ -85,6 +99,9 @@ const DEFAULT_ROUTING: ControlCenterTaskRouting = {
     primaryModel: 'openai/gpt-oss-120b:free',
     fallbackModels: [],
 };
+
+const LOCKED_AUTO_SESSION_MAX_CONCURRENT_POSITIONS = 3;
+const LOCKED_ALLOW_CLOSE_ALL_ON_TARGET = true;
 
 const DEFAULT_CONFIG: ControlCenterConfig = {
     permissions: {},
@@ -137,6 +154,20 @@ const DEFAULT_CONFIG: ControlCenterConfig = {
     },
     liveExecution: {
         readOnly: false,
+    },
+    budgetTargetAutoExecution: {
+        enabled: false,
+        armed: false,
+        readOnly: false,
+        maxConcurrentPositions: LOCKED_AUTO_SESSION_MAX_CONCURRENT_POSITIONS,
+        defaultBudgetUsdt: 50,
+        defaultTargetProfitUsdt: 10,
+        allowNewSessionStart: true,
+        allowCloseAllOnTarget: LOCKED_ALLOW_CLOSE_ALL_ON_TARGET,
+        killSwitch: false,
+        requireBinanceHealthPass: true,
+        requireOperatorConfirmationForStop: true,
+        sessionTimeoutMinutes: 240,
     },
     strategyLocks: {
         executionTf: '15m',
@@ -249,8 +280,11 @@ export function normalizeControlCenterConfig(value: unknown): ControlCenterConfi
     const ai = isRecord(config.ai) ? config.ai : {};
     const demoTrading = isRecord(config.demoTrading) ? config.demoTrading : {};
     const liveExecution = isRecord(config.liveExecution) ? config.liveExecution : {};
+    const budgetTargetAutoExecution = isRecord(config.budgetTargetAutoExecution) ? config.budgetTargetAutoExecution : {};
     const strategyLocks = isRecord(config.strategyLocks) ? config.strategyLocks : {};
     const permissions = normalizePermissions(config.permissions);
+    const budgetTargetDefaults = DEFAULT_CONFIG.budgetTargetAutoExecution;
+    const legacyBudgetEnabled = toBool(budgetTargetAutoExecution.enabled, budgetTargetDefaults.enabled);
 
     return {
         permissions,
@@ -289,6 +323,50 @@ export function normalizeControlCenterConfig(value: unknown): ControlCenterConfi
         },
         liveExecution: {
             readOnly: toBool(liveExecution.readOnly, DEFAULT_CONFIG.liveExecution.readOnly),
+        },
+        budgetTargetAutoExecution: {
+            enabled: toBool(
+                budgetTargetAutoExecution.enabled,
+                budgetTargetDefaults.enabled,
+            ),
+            armed: toBool(
+                budgetTargetAutoExecution.armed,
+                legacyBudgetEnabled,
+            ),
+            readOnly: toBool(
+                budgetTargetAutoExecution.readOnly,
+                budgetTargetDefaults.readOnly,
+            ),
+            maxConcurrentPositions: LOCKED_AUTO_SESSION_MAX_CONCURRENT_POSITIONS,
+            defaultBudgetUsdt: toNumber(
+                budgetTargetAutoExecution.defaultBudgetUsdt ?? budgetTargetAutoExecution.sessionBudgetUsdt,
+                budgetTargetDefaults.defaultBudgetUsdt,
+            ),
+            defaultTargetProfitUsdt: toNumber(
+                budgetTargetAutoExecution.defaultTargetProfitUsdt ?? budgetTargetAutoExecution.finalTargetNetProfitUsdt,
+                budgetTargetDefaults.defaultTargetProfitUsdt,
+            ),
+            allowNewSessionStart: toBool(
+                budgetTargetAutoExecution.allowNewSessionStart,
+                budgetTargetDefaults.allowNewSessionStart,
+            ),
+            allowCloseAllOnTarget: LOCKED_ALLOW_CLOSE_ALL_ON_TARGET,
+            killSwitch: toBool(
+                budgetTargetAutoExecution.killSwitch,
+                budgetTargetDefaults.killSwitch,
+            ),
+            requireBinanceHealthPass: toBool(
+                budgetTargetAutoExecution.requireBinanceHealthPass,
+                budgetTargetDefaults.requireBinanceHealthPass,
+            ),
+            requireOperatorConfirmationForStop: toBool(
+                budgetTargetAutoExecution.requireOperatorConfirmationForStop,
+                budgetTargetDefaults.requireOperatorConfirmationForStop,
+            ),
+            sessionTimeoutMinutes: toNumber(
+                budgetTargetAutoExecution.sessionTimeoutMinutes,
+                budgetTargetDefaults.sessionTimeoutMinutes,
+            ),
         },
         strategyLocks: {
             executionTf: toStringValue(strategyLocks.executionTf, DEFAULT_CONFIG.strategyLocks.executionTf),

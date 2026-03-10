@@ -16,8 +16,10 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import java.net.URI;
+import java.sql.SQLException;
+import java.sql.SQLTransientConnectionException;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -66,6 +68,53 @@ class GlobalExceptionHandlerTest {
 
         String headerTraceId = response.getHeader(TraceIdContext.TRACE_ID_HEADER);
         assertEquals(result.getBody().getTraceId(), headerTraceId);
+    }
+
+    @Test
+    void transactionExceptionClassifiesPoolExhaustion() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/v1/status");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request, response));
+
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        CannotCreateTransactionException forcedError = new CannotCreateTransactionException(
+                "db unavailable",
+                new SQLTransientConnectionException(
+                        "HikariPool-1 - Connection is not available, request timed out after 5005ms."));
+
+        ResponseEntity<ApiErrorResponse> result = handler.handleTransactionException(forcedError, request);
+
+        assertEquals(503, result.getStatusCode().value());
+        assertNotNull(result.getBody());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> details = (Map<String, Object>) result.getBody().getDetails();
+        assertEquals("POOL_EXHAUSTED", details.get("failureKind"));
+        assertEquals(5005, details.get("acquisitionTimeoutMs"));
+        assertEquals("SQLTransientConnectionException", details.get("rootExceptionClass"));
+    }
+
+    @Test
+    void transactionExceptionClassifiesAuthFailure() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/v1/status");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request, response));
+
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        CannotCreateTransactionException forcedError = new CannotCreateTransactionException(
+                "db unavailable",
+                new SQLException("password authentication failed for user trade-bot", "28P01"));
+
+        ResponseEntity<ApiErrorResponse> result = handler.handleTransactionException(forcedError, request);
+
+        assertEquals(503, result.getStatusCode().value());
+        assertNotNull(result.getBody());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> details = (Map<String, Object>) result.getBody().getDetails();
+        assertEquals("AUTH_FAILED", details.get("failureKind"));
+        assertEquals("28P01", details.get("sqlState"));
+        assertEquals("SQLException", details.get("rootExceptionClass"));
     }
 
     @Test

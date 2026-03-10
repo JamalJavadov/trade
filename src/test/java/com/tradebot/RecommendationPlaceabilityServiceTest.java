@@ -51,7 +51,7 @@ class RecommendationPlaceabilityServiceTest {
                 mapper);
 
         UUID recommendationId = UUID.randomUUID();
-        when(recommendationRepository.findById(recommendationId)).thenReturn(Optional.empty());
+        when(recommendationRepository.findDetailedById(recommendationId)).thenReturn(Optional.empty());
 
         var dto = service.evaluate(recommendationId);
         assertFalse(dto.isPlaceable());
@@ -78,7 +78,7 @@ class RecommendationPlaceabilityServiceTest {
         Recommendation rec = baseRecommendation(recommendationId, "BTCUSDT", "BUY");
         rec.setOrderFields(null);
 
-        when(recommendationRepository.findById(recommendationId)).thenReturn(Optional.of(rec));
+        when(recommendationRepository.findDetailedById(recommendationId)).thenReturn(Optional.of(rec));
         when(symbolEvaluationRepository.findByScanRunIdAndSymbol(rec.getScanRun().getId(), rec.getSymbol()))
                 .thenReturn(Optional.empty());
 
@@ -106,7 +106,7 @@ class RecommendationPlaceabilityServiceTest {
         UUID recommendationId = UUID.randomUUID();
         Recommendation rec = recWithOrders(recommendationId, "BTCUSDT", "BUY", "104.0", "98.0", mapper);
 
-        when(recommendationRepository.findById(recommendationId)).thenReturn(Optional.of(rec));
+        when(recommendationRepository.findDetailedById(recommendationId)).thenReturn(Optional.of(rec));
         when(binanceClient.getMarkPrice("BTCUSDT")).thenReturn(new BigDecimal("100.0"));
         when(binanceClient.getTickSize("BTCUSDT")).thenThrow(new IllegalArgumentException("missing tick"));
 
@@ -142,7 +142,7 @@ class RecommendationPlaceabilityServiceTest {
                 headers,
                 "https://fapi.binance.com/fapi/v1/premiumIndex");
 
-        when(recommendationRepository.findById(recommendationId)).thenReturn(Optional.of(rec));
+        when(recommendationRepository.findDetailedById(recommendationId)).thenReturn(Optional.of(rec));
         when(binanceClient.getMarkPrice("BTCUSDT")).thenThrow(ex);
 
         var dto = service.evaluate(recommendationId);
@@ -170,7 +170,7 @@ class RecommendationPlaceabilityServiceTest {
         UUID recommendationId = UUID.randomUUID();
         Recommendation rec = recWithOrders(recommendationId, "BTCUSDT", "BUY", "104.0", "98.0", mapper);
 
-        when(recommendationRepository.findById(recommendationId)).thenReturn(Optional.of(rec));
+        when(recommendationRepository.findDetailedById(recommendationId)).thenReturn(Optional.of(rec));
         when(binanceClient.getMarkPrice("BTCUSDT")).thenReturn(new BigDecimal("100.0"));
         when(binanceClient.getTickSize("BTCUSDT")).thenReturn(new BigDecimal("0.1"));
 
@@ -201,7 +201,7 @@ class RecommendationPlaceabilityServiceTest {
         UUID recommendationId = UUID.randomUUID();
         Recommendation rec = recWithOrders(recommendationId, "ETHUSDT", "SELL", "96.0", "102.0", mapper);
 
-        when(recommendationRepository.findById(recommendationId)).thenReturn(Optional.of(rec));
+        when(recommendationRepository.findDetailedById(recommendationId)).thenReturn(Optional.of(rec));
         when(binanceClient.getMarkPrice("ETHUSDT")).thenReturn(new BigDecimal("100.0"));
         when(binanceClient.getTickSize("ETHUSDT")).thenReturn(new BigDecimal("0.1"));
 
@@ -229,7 +229,7 @@ class RecommendationPlaceabilityServiceTest {
         UUID recommendationId = UUID.randomUUID();
         Recommendation rec = recWithOrders(recommendationId, "ETHUSDT", "SELL", "99.85", "100.1", mapper);
 
-        when(recommendationRepository.findById(recommendationId)).thenReturn(Optional.of(rec));
+        when(recommendationRepository.findDetailedById(recommendationId)).thenReturn(Optional.of(rec));
         when(binanceClient.getMarkPrice("ETHUSDT")).thenReturn(new BigDecimal("100.0"));
         when(binanceClient.getTickSize("ETHUSDT")).thenReturn(new BigDecimal("0.1"));
 
@@ -257,7 +257,7 @@ class RecommendationPlaceabilityServiceTest {
         UUID recommendationId = UUID.randomUUID();
         Recommendation rec = recWithOrders(recommendationId, "XRPUSDT", "SELL", "99.5", "100.05", mapper);
 
-        when(recommendationRepository.findById(recommendationId)).thenReturn(Optional.of(rec));
+        when(recommendationRepository.findDetailedById(recommendationId)).thenReturn(Optional.of(rec));
         when(binanceClient.getMarkPrice("XRPUSDT")).thenReturn(new BigDecimal("100.0"));
         when(binanceClient.getTickSize("XRPUSDT")).thenReturn(new BigDecimal("0.1"));
 
@@ -290,7 +290,7 @@ class RecommendationPlaceabilityServiceTest {
         SymbolEvaluation evaluation = new SymbolEvaluation();
         evaluation.setMetricsJson(mapper.writeValueAsString(Map.of("tp1", "104.0", "sl", "98.0")));
 
-        when(recommendationRepository.findById(recommendationId)).thenReturn(Optional.of(rec));
+        when(recommendationRepository.findDetailedById(recommendationId)).thenReturn(Optional.of(rec));
         when(symbolEvaluationRepository.findByScanRunIdAndSymbol(rec.getScanRun().getId(), rec.getSymbol()))
                 .thenReturn(Optional.of(evaluation));
         when(binanceClient.getMarkPrice("SOLUSDT")).thenReturn(new BigDecimal("100.0"));

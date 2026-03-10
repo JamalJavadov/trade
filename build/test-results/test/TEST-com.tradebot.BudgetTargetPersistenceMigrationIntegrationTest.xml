@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.BudgetTargetPersistenceMigrationIntegrationTest" tests="5" skipped="5" failures="0" errors="0" timestamp="2026-03-09T19:39:39" hostname="CamaltekiMacBook-Pro.local" time="0.0">
+  <properties/>
+  <testcase name="backfillsAuditEventCategorySeverityAndActorDuringV42Migration()" classname="com.tradebot.BudgetTargetPersistenceMigrationIntegrationTest" time="0.0">
+    <skipped/>
+  </testcase>
+  <testcase name="createsExchangeSyncSnapshotTableWithExpectedColumns()" classname="com.tradebot.BudgetTargetPersistenceMigrationIntegrationTest" time="0.0">
+    <skipped/>
+  </testcase>
+  <testcase name="migratesLegacyBudgetTargetRowsIntoV2Domain()" classname="com.tradebot.BudgetTargetPersistenceMigrationIntegrationTest" time="0.0">
+    <skipped/>
+  </testcase>
+  <testcase name="executionFailureCountDefaultsToZeroAfterMigration()" classname="com.tradebot.BudgetTargetPersistenceMigrationIntegrationTest" time="0.0">
+    <skipped/>
+  </testcase>
+  <testcase name="enforcesSessionAndLedgerInvariants()" classname="com.tradebot.BudgetTargetPersistenceMigrationIntegrationTest" time="0.0">
+    <skipped/>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:39" hostname="CamaltekiMacBook-Pro.local" time="0.233">
+  <properties/>
+  <testcase name="staleExchangeSyncBlocksNewTradesAndWritesExactSessionBlocker()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.146"/>
+  <testcase name="unrealizedProfitAloneDoesNotTriggerTargetReached()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.006"/>
+  <testcase name="killSwitchStopsSessionAndStartsCloseAll()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.003"/>
+  <testcase name="failedExecutionCountsAsExecutionFailureAndSurfacesExactReason()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.023"/>
+  <testcase name="activePositionLimitBlocksFourthOpenAndWritesEvent()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.003"/>
+  <testcase name="duplicateLiveExecutionConflictRejectsRecommendationWithoutOpeningTrade()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.004"/>
+  <testcase name="realizedTargetHitTransitionsToStoppingAndStartsCloseAll()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.003"/>
+  <testcase name="targetReachedSessionDoesNotOpenNewTradesBeforeCloseAllBegins()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.003"/>
+  <testcase name="readOnlyToggleStopsSessionAndStartsCloseAll()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.003"/>
+  <testcase name="staleRecommendationWritesAllocationAndRejectAuditsWithoutExecuting()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.025"/>
+  <testcase name="armedSessionPromotesToRunningBeforeFirstAutoScanUsingAllocatedSlice()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.004"/>
+  <testcase name="exchangeFilterValidationFailuresRejectRecommendationWithStructuredCode()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.007"/>
+  <testcase name="budgetExhaustionWritesAuditAndSkipsTradeOpen()" classname="com.tradebot.BudgetTargetAutoExecutionCoordinatorTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

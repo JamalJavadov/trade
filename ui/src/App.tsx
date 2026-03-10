@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { DashboardPage } from './pages/DashboardPage';
+import { BudgetTargetAutoExecutionPage } from './pages/BudgetTargetAutoExecutionPage';
 import { RecommendationDetailPage } from './pages/RecommendationDetailPage';
 import { JournalPage } from './pages/JournalPage';
 import { AiPage } from './pages/AiPage';
@@ -37,11 +38,12 @@ function App() {
                 </div>
                 <Link to="/" className="text-xl font-bold tracking-tight text-white hover:text-blue-200 transition-colors">TradeBot</Link>
                 <span className="rounded-full border border-amber-700/60 bg-amber-900/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-200">
-                  Manual Live Execution Only
+                  Manual + Auto Session Live Execution
                 </span>
               </div>
               <nav className="flex flex-wrap justify-end gap-4">
                 <Link to="/dashboard" className="text-gray-300 hover:text-white font-medium">Dashboard</Link>
+                <Link to="/auto-session" className="text-emerald-300 hover:text-emerald-200 font-semibold">Auto Session</Link>
                 <Link to="/scan" className="text-gray-300 hover:text-blue-400 font-medium">Live Scan</Link>
                 <Link to="/scan/history" className="text-gray-300 hover:text-blue-200 font-medium">Scan History</Link>
                 <Link to="/journal" className="text-gray-300 hover:text-white font-medium">Journal</Link>
@@ -65,6 +67,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/auto-session" element={<BudgetTargetAutoExecutionPage />} />
               <Route path="/scan" element={<LiveScanRoute />} />
               <Route path="/scan/:scanRunId" element={<LiveScanRoute />} />
               <Route path="/scan/history" element={<ScanHistoryPage />} />

@@ -192,7 +192,6 @@ public class BinanceClient {
     }
 
     @CircuitBreaker(name = "binanceApi")
-    @Retry(name = "binanceApi")
     public Map<String, Object> setLeverage(String symbol, int leverage) {
         LinkedHashMap<String, String> params = new LinkedHashMap<>();
         params.put("symbol", symbol);
@@ -201,7 +200,6 @@ public class BinanceClient {
     }
 
     @CircuitBreaker(name = "binanceApi")
-    @Retry(name = "binanceApi")
     public Map<String, Object> ensureIsolatedMargin(String symbol) {
         LinkedHashMap<String, String> params = new LinkedHashMap<>();
         params.put("symbol", symbol);
@@ -217,7 +215,6 @@ public class BinanceClient {
     }
 
     @CircuitBreaker(name = "binanceApi")
-    @Retry(name = "binanceApi")
     public Map<String, Object> ensureOneWayPositionMode() {
         Boolean dualSidePosition = getDualSidePositionMode();
         if (Boolean.FALSE.equals(dualSidePosition)) {
@@ -296,13 +293,11 @@ public class BinanceClient {
     }
 
     @CircuitBreaker(name = "binanceApi")
-    @Retry(name = "binanceApi")
     public BinanceFuturesOrderResponse submitOrder(Map<String, String> params) {
         return executeSignedPost("/fapi/v1/order", new LinkedHashMap<>(params), BinanceFuturesOrderResponse.class, 1);
     }
 
     @CircuitBreaker(name = "binanceApi")
-    @Retry(name = "binanceApi")
     public BinanceFuturesAlgoOrderResponse submitAlgoOrder(Map<String, String> params) {
         return executeSignedPost("/fapi/v1/algoOrder",
                 new LinkedHashMap<>(params),
@@ -340,7 +335,6 @@ public class BinanceClient {
     }
 
     @CircuitBreaker(name = "binanceApi")
-    @Retry(name = "binanceApi")
     public BinanceFuturesAlgoOrderCancelResponse cancelAlgoOrder(String clientAlgoId, Long algoId) {
         LinkedHashMap<String, String> params = new LinkedHashMap<>();
         if (clientAlgoId != null && !clientAlgoId.isBlank()) {
@@ -377,6 +371,47 @@ public class BinanceClient {
             params.put("symbol", symbol);
         }
         return executeSignedGet("/fapi/v3/positionRisk", params, POSITION_RISK_LIST_TYPE, 5);
+    }
+
+    @CircuitBreaker(name = "binanceApi")
+    @Retry(name = "binanceApi")
+    public List<Map<String, Object>> getUserTrades(String symbol, Long orderId, Long startTimeMs, Long endTimeMs) {
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        params.put("symbol", symbol);
+        if (orderId != null) {
+            params.put("orderId", String.valueOf(orderId));
+        }
+        if (startTimeMs != null) {
+            params.put("startTime", String.valueOf(startTimeMs));
+        }
+        if (endTimeMs != null) {
+            params.put("endTime", String.valueOf(endTimeMs));
+        }
+        return executeSignedGet("/fapi/v1/userTrades", params, LIST_OF_MAP_TYPE, 5);
+    }
+
+    @CircuitBreaker(name = "binanceApi")
+    @Retry(name = "binanceApi")
+    public List<Map<String, Object>> getIncomeHistory(String symbol,
+            String incomeType,
+            Long startTimeMs,
+            Long endTimeMs,
+            int limit) {
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        if (symbol != null && !symbol.isBlank()) {
+            params.put("symbol", symbol);
+        }
+        if (incomeType != null && !incomeType.isBlank()) {
+            params.put("incomeType", incomeType);
+        }
+        if (startTimeMs != null) {
+            params.put("startTime", String.valueOf(startTimeMs));
+        }
+        if (endTimeMs != null) {
+            params.put("endTime", String.valueOf(endTimeMs));
+        }
+        params.put("limit", String.valueOf(Math.max(1, Math.min(limit, 1000))));
+        return executeSignedGet("/fapi/v1/income", params, LIST_OF_MAP_TYPE, 30);
     }
 
     private BinanceExchangeInfoResponse getExchangeInfoCached() {

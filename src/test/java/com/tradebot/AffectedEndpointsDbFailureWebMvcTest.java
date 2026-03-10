@@ -4,6 +4,8 @@ import com.tradebot.config.TraceIdFilter;
 import com.tradebot.controlcenter.ControlCenterController;
 import com.tradebot.controlcenter.ControlCenterSettingsProvider;
 import com.tradebot.controller.AiModelController;
+import com.tradebot.controller.BudgetTargetAutoExecutionController;
+import com.tradebot.controller.LiveTradingController;
 import com.tradebot.controller.RecommendationController;
 import com.tradebot.controller.SettingsController;
 import com.tradebot.controller.StatusController;
@@ -17,12 +19,16 @@ import com.tradebot.security.LocalMutationGuard;
 import com.tradebot.service.AiModelSettingsService;
 import com.tradebot.service.AppSettingsService;
 import com.tradebot.service.AutoScanStateService;
+import com.tradebot.service.BudgetTargetAutoExecutionAuditQueryService;
+import com.tradebot.service.BudgetTargetAutoExecutionLifecycleService;
+import com.tradebot.service.BudgetTargetAutoExecutionQueryService;
 import com.tradebot.service.LiveTradingExecutionService;
 import com.tradebot.service.LiveTradingPreflightService;
 import com.tradebot.service.RecommendationPlaceabilityService;
 import com.tradebot.service.RecommendationQueryService;
 import com.tradebot.service.ScanOrchestrator;
 import com.tradebot.service.SuggestionBatchService;
+import com.tradebot.sse.BudgetTargetSessionStreamRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,7 +51,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         StatusController.class,
         SettingsController.class,
         ControlCenterController.class,
-        RecommendationController.class
+        RecommendationController.class,
+        BudgetTargetAutoExecutionController.class,
+        LiveTradingController.class
 })
 @Import({ GlobalExceptionHandler.class, TraceIdFilter.class })
 class AffectedEndpointsDbFailureWebMvcTest {
@@ -101,9 +109,23 @@ class AffectedEndpointsDbFailureWebMvcTest {
     @MockBean
     private LiveTradingExecutionService liveTradingExecutionService;
 
+    @MockBean
+    private BudgetTargetAutoExecutionQueryService budgetTargetAutoExecutionQueryService;
+
+    @MockBean
+    private BudgetTargetAutoExecutionAuditQueryService budgetTargetAutoExecutionAuditQueryService;
+
+    @MockBean
+    private BudgetTargetAutoExecutionLifecycleService budgetTargetAutoExecutionLifecycleService;
+
+    @MockBean
+    private BudgetTargetSessionStreamRegistry budgetTargetSessionStreamRegistry;
+
     @BeforeEach
     void setUp() {
         when(permissionCatalog.all()).thenReturn(List.of());
+        when(localMutationGuard.evaluate(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.tradebot.security.LocalMutationGuard.LocalRequestCheck(true, "127.0.0.1", null, null, null));
     }
 
     @Test
@@ -144,6 +166,22 @@ class AffectedEndpointsDbFailureWebMvcTest {
                 .thenThrow(new CannotCreateTransactionException("db unavailable"));
 
         expectDbDown("/api/v1/recommendations/latest");
+    }
+
+    @Test
+    void autoSessionStateMapsDbTransactionFailureTo503() throws Exception {
+        when(budgetTargetAutoExecutionQueryService.getState())
+                .thenThrow(new CannotCreateTransactionException("db unavailable"));
+
+        expectDbDown("/api/v1/budget-target-auto-execution/state");
+    }
+
+    @Test
+    void liveTradingHealthMapsDbTransactionFailureTo503() throws Exception {
+        when(liveTradingPreflightService.evaluateHealth(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new CannotCreateTransactionException("db unavailable"));
+
+        expectDbDown("/api/v1/live-trading/health");
     }
 
     private void expectDbDown(String path) throws Exception {

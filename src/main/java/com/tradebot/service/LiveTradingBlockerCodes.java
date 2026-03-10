@@ -29,9 +29,15 @@ public final class LiveTradingBlockerCodes {
     public static final String BINANCE_RATE_LIMIT = "BINANCE_RATE_LIMIT";
     public static final String BINANCE_REJECTED = "BINANCE_REJECTED";
     public static final String ENTRY_FILL_UNRESOLVED = "ENTRY_FILL_UNRESOLVED";
+    public static final String REALIZED_PNL_UNRESOLVED = "REALIZED_PNL_UNRESOLVED";
     public static final String PROTECTION_ORDER_INVALID = "PROTECTION_ORDER_INVALID";
+    public static final String AUTO_SESSION_NOT_OPEN_FOR_TRADES = "AUTO_SESSION_NOT_OPEN_FOR_TRADES";
     public static final String LIVE_EXECUTION_FAILED = "LIVE_EXECUTION_FAILED";
     public static final String UPSTREAM_TIMEOUT = "UPSTREAM_TIMEOUT";
+    public static final String EXCHANGE_SYNC_FAILED = ExchangeSyncSnapshotService.EXCHANGE_SYNC_FAILED;
+    public static final String EXCHANGE_SYNC_DIVERGED = ExchangeSyncSnapshotService.EXCHANGE_SYNC_DIVERGED;
+    public static final String EXCHANGE_SYNC_STALE = ExchangeSyncSnapshotService.EXCHANGE_SYNC_STALE;
+    public static final String EXCHANGE_SYNC_UNCONFIRMED = ExchangeSyncSnapshotService.EXCHANGE_SYNC_UNCONFIRMED;
 
     private static final Map<String, Integer> PRIORITIES = Map.ofEntries(
             Map.entry(LIVE_EXECUTION_DISABLED, 10),
@@ -59,8 +65,14 @@ public final class LiveTradingBlockerCodes {
             Map.entry(BINANCE_RATE_LIMIT, 160),
             Map.entry(BINANCE_REJECTED, 170),
             Map.entry(ENTRY_FILL_UNRESOLVED, 175),
+            Map.entry(REALIZED_PNL_UNRESOLVED, 176),
             Map.entry(PROTECTION_ORDER_INVALID, 176),
-            Map.entry(UPSTREAM_TIMEOUT, 180),
+            Map.entry(EXCHANGE_SYNC_DIVERGED, 177),
+            Map.entry(EXCHANGE_SYNC_FAILED, 178),
+            Map.entry(EXCHANGE_SYNC_UNCONFIRMED, 179),
+            Map.entry(EXCHANGE_SYNC_STALE, 180),
+            Map.entry(AUTO_SESSION_NOT_OPEN_FOR_TRADES, 178),
+            Map.entry(UPSTREAM_TIMEOUT, 181),
             Map.entry(LIVE_EXECUTION_FAILED, 190));
 
     private LiveTradingBlockerCodes() {

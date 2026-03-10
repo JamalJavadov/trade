@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.BudgetTargetAutoExecutionControllerWebMvcTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:39" hostname="CamaltekiMacBook-Pro.local" time="0.092">
+  <properties/>
+  <testcase name="getStateReturnsCurrentSnapshot()" classname="com.tradebot.BudgetTargetAutoExecutionControllerWebMvcTest" time="0.015"/>
+  <testcase name="getSessionDetailReturnsAuditReport()" classname="com.tradebot.BudgetTargetAutoExecutionControllerWebMvcTest" time="0.017"/>
+  <testcase name="postStatePassesSessionBudgetAndTargetToLifecycleService()" classname="com.tradebot.BudgetTargetAutoExecutionControllerWebMvcTest" time="0.006"/>
+  <testcase name="getTimelineTradesTradeDetailAndReplayExposeAuditPayloads()" classname="com.tradebot.BudgetTargetAutoExecutionControllerWebMvcTest" time="0.025"/>
+  <testcase name="getSessionsReturnsAuditSummaries()" classname="com.tradebot.BudgetTargetAutoExecutionControllerWebMvcTest" time="0.004"/>
+  <testcase name="streamEndpointReturnsResyncForHistoricalSessions()" classname="com.tradebot.BudgetTargetAutoExecutionControllerWebMvcTest" time="0.005"/>
+  <testcase name="getStateIncludesStructuredStopAndFailureFields()" classname="com.tradebot.BudgetTargetAutoExecutionControllerWebMvcTest" time="0.011"/>
+  <testcase name="streamEndpointReplaysEventsUsingBrowserFriendlyLastEventIdQueryParam()" classname="com.tradebot.BudgetTargetAutoExecutionControllerWebMvcTest" time="0.004"/>
+  <system-out><![CDATA[2026-03-09T23:39:39.280+04:00  INFO 84573 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.BudgetTargetAutoExecutionControllerWebMvcTest]: BudgetTargetAutoExecutionControllerWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-09T23:39:39.282+04:00  INFO 84573 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.BudgetTargetAutoExecutionControllerWebMvcTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.4)
+
+2026-03-09T23:39:39.290+04:00  INFO 84573 --- [    Test worker] tTargetAutoExecutionControllerWebMvcTest : Starting BudgetTargetAutoExecutionControllerWebMvcTest using Java 21.0.9 with PID 84573 (started by camal in /Users/camal/Documents/making money/trade/trade bot)
+2026-03-09T23:39:39.290+04:00  INFO 84573 --- [    Test worker] tTargetAutoExecutionControllerWebMvcTest : No active profile set, falling back to 1 default profile: "default"
+2026-03-09T23:39:39.378+04:00  INFO 84573 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-09T23:39:39.378+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-09T23:39:39.378+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-09T23:39:39.380+04:00  INFO 84573 --- [    Test worker] tTargetAutoExecutionControllerWebMvcTest : Started BudgetTargetAutoExecutionControllerWebMvcTest in 0.097 seconds (process running for 3.129)
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,17 @@
+package com.tradebot.entity;
+
+public enum BudgetTargetSessionCompletionReason {
+    TARGET_REACHED,
+    OPERATOR_STOPPED,
+    KILL_SWITCH,
+    READ_ONLY_ENABLED,
+    BINANCE_HEALTH_FAILED,
+    BUDGET_EXHAUSTED,
+    SESSION_TIMEOUT,
+    FATAL_SYNC_ERROR,
+    EXECUTION_FAILURE_THRESHOLD,
+    MANUAL_OFF,
+    RUNTIME_BLOCKED,
+    FLATTEN_FAILED,
+    UNKNOWN
+}

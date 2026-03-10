@@ -16,7 +16,8 @@ interface UiError {
     fix: string;
 }
 
-type SavingSection = 'liveExecution' | 'permissions' | 'scan' | 'risk' | 'alerts' | 'ai' | 'demo' | 'reset' | null;
+type BudgetTargetAutoExecutionConfig = ControlCenterConfig['budgetTargetAutoExecution'];
+type SavingSection = 'liveExecution' | 'autoExecution' | 'permissions' | 'scan' | 'risk' | 'alerts' | 'ai' | 'demo' | 'reset' | null;
 
 const RESET_DEFAULTS_PATCH: Record<string, unknown> = {
     scan: {
@@ -48,6 +49,19 @@ const RESET_DEFAULTS_PATCH: Record<string, unknown> = {
     },
     liveExecution: {
         readOnly: false,
+    },
+    budgetTargetAutoExecution: {
+        enabled: false,
+        readOnly: false,
+        maxConcurrentPositions: 3,
+        defaultBudgetUsdt: 50,
+        defaultTargetProfitUsdt: 10,
+        allowNewSessionStart: true,
+        allowCloseAllOnTarget: true,
+        killSwitch: false,
+        requireBinanceHealthPass: true,
+        requireOperatorConfirmationForStop: true,
+        sessionTimeoutMinutes: 240,
     },
     strategyLocks: {
         executionTf: '15m',
@@ -245,6 +259,7 @@ export function PermissionsPage() {
     const [aiDraft, setAiDraft] = useState<ControlCenterConfig['ai'] | null>(null);
     const [demoDraft, setDemoDraft] = useState<ControlCenterConfig['demoTrading'] | null>(null);
     const [liveExecutionDraft, setLiveExecutionDraft] = useState<ControlCenterConfig['liveExecution'] | null>(null);
+    const [autoExecutionDraft, setAutoExecutionDraft] = useState<BudgetTargetAutoExecutionConfig | null>(null);
     const [autoScanState, setAutoScanState] = useState<AutoScanStateResponse | null>(null);
     const [autoScanLoading, setAutoScanLoading] = useState(true);
     const [autoScanError, setAutoScanError] = useState<UiError | null>(null);
@@ -263,6 +278,7 @@ export function PermissionsPage() {
         setAiDraft(normalizedConfig.ai);
         setDemoDraft(normalizedConfig.demoTrading);
         setLiveExecutionDraft(normalizedConfig.liveExecution);
+        setAutoExecutionDraft(normalizedConfig.budgetTargetAutoExecution);
     }, [state]);
 
     useEffect(() => {
@@ -389,7 +405,7 @@ export function PermissionsPage() {
         }
     };
 
-    if (loading || !state || !scanDraft || !riskDraft || !alertsDraft || !aiDraft || !demoDraft || !liveExecutionDraft) {
+    if (loading || !state || !scanDraft || !riskDraft || !alertsDraft || !aiDraft || !demoDraft || !liveExecutionDraft || !autoExecutionDraft) {
         return (
             <div className="rounded-xl border border-slate-700 bg-slate-800 p-6 text-sm text-slate-300">
                 Loading Control Center state...
@@ -454,7 +470,7 @@ export function PermissionsPage() {
 
             <SectionCard
                 title="Live Execution Runtime"
-                description="Single manual live-execution capability plus the Control Center READ-ONLY trading gate."
+                description="Shared live execution capability for manual recommendation execution and budget-target auto sessions, plus the Control Center READ-ONLY trading gate."
                 onSave={() => void handleSave(
                     'liveExecution',
                     {
@@ -480,7 +496,7 @@ export function PermissionsPage() {
                     <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
                         <p className="text-xs text-slate-400">Trading Gate</p>
                         <p className={`mt-2 font-semibold ${liveExecutionDraft.readOnly ? 'text-amber-300' : 'text-emerald-300'}`}>
-                            {liveExecutionDraft.readOnly ? 'READ ONLY' : 'LIVE MANUAL EXECUTION'}
+                            {liveExecutionDraft.readOnly ? 'READ ONLY' : 'LIVE EXECUTION ENABLED'}
                         </p>
                     </div>
                     <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
@@ -489,13 +505,13 @@ export function PermissionsPage() {
                     </div>
                     <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
                         <p className="text-xs text-slate-400">Flow</p>
-                        <p className="mt-2 font-semibold text-slate-100">MANUAL BUTTON ONLY</p>
+                        <p className="mt-2 font-semibold text-slate-100">MANUAL + AUTO SESSION</p>
                     </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                     <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
-                        <span className="text-xs text-slate-400">Enable manual live execution</span>
+                        <span className="text-xs text-slate-400">Enable live execution runtime</span>
                         <div className="mt-2">
                             <input
                                 type="checkbox"
@@ -508,7 +524,7 @@ export function PermissionsPage() {
                             />
                         </div>
                         <p className="mt-2 text-xs text-slate-400">
-                            This is the single capability gate for real manual execution from recommendation detail.
+                            This is the shared capability gate for real manual execution and budget-target auto sessions.
                         </p>
                     </label>
 
@@ -530,7 +546,195 @@ export function PermissionsPage() {
 
                 <div className="mt-4 rounded border border-slate-700 bg-slate-950/40 p-3 text-xs text-slate-300">
                     <p>Canonical runtime source: <span className="font-mono text-slate-100">control_center_state</span></p>
-                    <p className="mt-1">Mutations remain localhost-only. This does not introduce conventional user auth or auto-trading.</p>
+                    <p className="mt-1">Mutations remain localhost-only. Auto sessions stay additive and reuse the existing execution controls instead of bypassing them.</p>
+                </div>
+            </SectionCard>
+
+            <SectionCard
+                title="Budget Target Auto-Execution Runtime"
+                description="Runtime defaults and guardrails for budget-target auto sessions. ON / OFF remains a dedicated session command from the dashboard."
+                onSave={() => {
+                    const { armed: _armed, ...autoExecutionPatch } = autoExecutionDraft;
+                    void _armed;
+                    return handleSave(
+                        'autoExecution',
+                        { budgetTargetAutoExecution: autoExecutionPatch },
+                        'Budget target auto-execution runtime saved',
+                        'budget-target-auto-execution-runtime-save',
+                    );
+                }}
+                saving={savingSection === 'autoExecution'}
+                disabled={!settingsUpdateAllowed}
+                saveLabel="Save auto-execution runtime"
+            >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                    <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <p className="text-xs text-slate-400">Feature</p>
+                        <p className={`mt-2 font-semibold ${autoExecutionDraft.enabled ? 'text-emerald-300' : 'text-rose-300'}`}>
+                            {autoExecutionDraft.enabled ? 'ENABLED' : 'DISABLED'}
+                        </p>
+                    </div>
+                    <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <p className="text-xs text-slate-400">Operator Intent</p>
+                        <p className={`mt-2 font-semibold ${autoExecutionDraft.armed ? 'text-sky-300' : 'text-slate-300'}`}>
+                            {autoExecutionDraft.armed ? 'ARMED' : 'DISARMED'}
+                        </p>
+                    </div>
+                    <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <p className="text-xs text-slate-400">Module Gate</p>
+                        <p className={`mt-2 font-semibold ${autoExecutionDraft.readOnly ? 'text-amber-300' : 'text-emerald-300'}`}>
+                            {autoExecutionDraft.readOnly ? 'READ ONLY' : 'ORDER SUBMISSION ALLOWED'}
+                        </p>
+                    </div>
+                    <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <p className="text-xs text-slate-400">Kill Switch</p>
+                        <p className={`mt-2 font-semibold ${autoExecutionDraft.killSwitch ? 'text-rose-300' : 'text-slate-300'}`}>
+                            {autoExecutionDraft.killSwitch ? 'ON' : 'OFF'}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">Enable feature</span>
+                        <div className="mt-2">
+                            <input
+                                type="checkbox"
+                                checked={autoExecutionDraft.enabled}
+                                disabled={!settingsUpdateAllowed}
+                                onChange={(event) => setAutoExecutionDraft({ ...autoExecutionDraft, enabled: event.target.checked })}
+                            />
+                        </div>
+                    </label>
+
+                    <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">READ-ONLY mode</span>
+                        <div className="mt-2">
+                            <input
+                                type="checkbox"
+                                checked={autoExecutionDraft.readOnly}
+                                disabled={!settingsUpdateAllowed}
+                                onChange={(event) => setAutoExecutionDraft({ ...autoExecutionDraft, readOnly: event.target.checked })}
+                            />
+                        </div>
+                    </label>
+
+                    <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">Allow new session start</span>
+                        <div className="mt-2">
+                            <input
+                                type="checkbox"
+                                checked={autoExecutionDraft.allowNewSessionStart}
+                                disabled={!settingsUpdateAllowed}
+                                onChange={(event) => setAutoExecutionDraft({ ...autoExecutionDraft, allowNewSessionStart: event.target.checked })}
+                            />
+                        </div>
+                    </label>
+
+                    <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">Close all on target</span>
+                        <p className="mt-2 font-semibold text-emerald-300">Always ON</p>
+                        <p className="mt-1 text-xs text-slate-400">Locked by the runtime contract when realized net PnL reaches the session target.</p>
+                    </div>
+
+                    <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">Kill switch</span>
+                        <div className="mt-2">
+                            <input
+                                type="checkbox"
+                                checked={autoExecutionDraft.killSwitch}
+                                disabled={!settingsUpdateAllowed}
+                                onChange={(event) => setAutoExecutionDraft({ ...autoExecutionDraft, killSwitch: event.target.checked })}
+                            />
+                        </div>
+                    </label>
+
+                    <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">Require Binance health pass</span>
+                        <div className="mt-2">
+                            <input
+                                type="checkbox"
+                                checked={autoExecutionDraft.requireBinanceHealthPass}
+                                disabled={!settingsUpdateAllowed}
+                                onChange={(event) => setAutoExecutionDraft({ ...autoExecutionDraft, requireBinanceHealthPass: event.target.checked })}
+                            />
+                        </div>
+                    </label>
+
+                    <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">Require operator confirmation for stop</span>
+                        <div className="mt-2">
+                            <input
+                                type="checkbox"
+                                checked={autoExecutionDraft.requireOperatorConfirmationForStop}
+                                disabled={!settingsUpdateAllowed}
+                                onChange={(event) => setAutoExecutionDraft({
+                                    ...autoExecutionDraft,
+                                    requireOperatorConfirmationForStop: event.target.checked,
+                                })}
+                            />
+                        </div>
+                    </label>
+
+                    <div className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">Max concurrent positions</span>
+                        <p className="mt-2 font-semibold text-sky-300">{autoExecutionDraft.maxConcurrentPositions}</p>
+                        <p className="mt-1 text-xs text-slate-400">Locked runtime cap. The coordinator and DB both enforce a maximum of 3 active positions.</p>
+                    </div>
+
+                    <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">Default session budget (USDT)</span>
+                        <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={autoExecutionDraft.defaultBudgetUsdt}
+                            disabled={!settingsUpdateAllowed}
+                            onChange={(event) => setAutoExecutionDraft({
+                                ...autoExecutionDraft,
+                                defaultBudgetUsdt: Number(event.target.value) || 0,
+                            })}
+                            className="mt-2 w-full rounded border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white"
+                        />
+                    </label>
+
+                    <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">Default target profit (USDT)</span>
+                        <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={autoExecutionDraft.defaultTargetProfitUsdt}
+                            disabled={!settingsUpdateAllowed}
+                            onChange={(event) => setAutoExecutionDraft({
+                                ...autoExecutionDraft,
+                                defaultTargetProfitUsdt: Number(event.target.value) || 0,
+                            })}
+                            className="mt-2 w-full rounded border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white"
+                        />
+                    </label>
+
+                    <label className="rounded border border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-200">
+                        <span className="text-xs text-slate-400">Session timeout (minutes)</span>
+                        <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={autoExecutionDraft.sessionTimeoutMinutes}
+                            disabled={!settingsUpdateAllowed}
+                            onChange={(event) => setAutoExecutionDraft({
+                                ...autoExecutionDraft,
+                                sessionTimeoutMinutes: Number(event.target.value) || 1,
+                            })}
+                            className="mt-2 w-full rounded border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white"
+                        />
+                    </label>
+                </div>
+
+                <div className="mt-4 rounded border border-slate-700 bg-slate-950/40 p-3 text-xs text-slate-300">
+                    <p>Operator intent (`armed`) is command-driven. Use the dashboard ON / OFF control to arm or stop a session.</p>
+                    <p className="mt-1">`maxConcurrentPositions=3` and target-hit close-all are locked invariants and are shown here for visibility only.</p>
+                    <p className="mt-1">This form patches runtime defaults only and never sends `budgetTargetAutoExecution.armed` to the Control Center API.</p>
                 </div>
             </SectionCard>
 

@@ -1,5 +1,7 @@
 package com.tradebot.controlcenter;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
@@ -20,6 +22,7 @@ public class ControlCenterConfig {
     private Ai ai = new Ai();
     private DemoTrading demoTrading = new DemoTrading();
     private LiveExecution liveExecution = new LiveExecution();
+    private BudgetTargetAutoExecution budgetTargetAutoExecution = new BudgetTargetAutoExecution();
     private StrategyLocks strategyLocks = new StrategyLocks();
 
     public void ensureDefaults() {
@@ -44,6 +47,9 @@ public class ControlCenterConfig {
         if (liveExecution == null) {
             liveExecution = new LiveExecution();
         }
+        if (budgetTargetAutoExecution == null) {
+            budgetTargetAutoExecution = new BudgetTargetAutoExecution();
+        }
         if (strategyLocks == null) {
             strategyLocks = new StrategyLocks();
         }
@@ -52,6 +58,7 @@ public class ControlCenterConfig {
         ai.ensureDefaults();
         demoTrading.ensureDefaults();
         liveExecution.ensureDefaults();
+        budgetTargetAutoExecution.ensureDefaults();
         strategyLocks.ensureDefaults();
     }
 
@@ -217,6 +224,86 @@ public class ControlCenterConfig {
 
         public void ensureDefaults() {
             // default false keeps manual execution available when capability is enabled
+        }
+    }
+
+    @Data
+    public static class BudgetTargetAutoExecution {
+        public static final int LOCKED_MAX_CONCURRENT_POSITIONS = 3;
+        public static final boolean LOCKED_ALLOW_CLOSE_ALL_ON_TARGET = true;
+
+        private boolean enabled = false;
+        private boolean armed = false;
+        private boolean readOnly = false;
+        @JsonAlias("maxActiveTrades")
+        private int maxConcurrentPositions = LOCKED_MAX_CONCURRENT_POSITIONS;
+        @JsonAlias("sessionBudgetUsdt")
+        private BigDecimal defaultBudgetUsdt = new BigDecimal("50");
+        @JsonAlias("finalTargetNetProfitUsdt")
+        private BigDecimal defaultTargetProfitUsdt = new BigDecimal("10");
+        private boolean allowNewSessionStart = true;
+        private boolean allowCloseAllOnTarget = LOCKED_ALLOW_CLOSE_ALL_ON_TARGET;
+        private boolean killSwitch = false;
+        private boolean requireBinanceHealthPass = true;
+        private boolean requireOperatorConfirmationForStop = true;
+        private int sessionTimeoutMinutes = 240;
+
+        public void ensureDefaults() {
+            if (defaultBudgetUsdt == null) {
+                defaultBudgetUsdt = new BigDecimal("50");
+            }
+            if (defaultTargetProfitUsdt == null) {
+                defaultTargetProfitUsdt = new BigDecimal("10");
+            }
+            if (maxConcurrentPositions < 1) {
+                maxConcurrentPositions = LOCKED_MAX_CONCURRENT_POSITIONS;
+            }
+            if (sessionTimeoutMinutes < 1) {
+                sessionTimeoutMinutes = 240;
+            }
+        }
+
+        public boolean normalizeLockedInvariants() {
+            boolean changed = false;
+            if (maxConcurrentPositions != LOCKED_MAX_CONCURRENT_POSITIONS) {
+                maxConcurrentPositions = LOCKED_MAX_CONCURRENT_POSITIONS;
+                changed = true;
+            }
+            if (allowCloseAllOnTarget != LOCKED_ALLOW_CLOSE_ALL_ON_TARGET) {
+                allowCloseAllOnTarget = LOCKED_ALLOW_CLOSE_ALL_ON_TARGET;
+                changed = true;
+            }
+            return changed;
+        }
+
+        @JsonIgnore
+        public BigDecimal getSessionBudgetUsdt() {
+            return defaultBudgetUsdt;
+        }
+
+        @JsonIgnore
+        public void setSessionBudgetUsdt(BigDecimal sessionBudgetUsdt) {
+            this.defaultBudgetUsdt = sessionBudgetUsdt;
+        }
+
+        @JsonIgnore
+        public BigDecimal getFinalTargetNetProfitUsdt() {
+            return defaultTargetProfitUsdt;
+        }
+
+        @JsonIgnore
+        public void setFinalTargetNetProfitUsdt(BigDecimal finalTargetNetProfitUsdt) {
+            this.defaultTargetProfitUsdt = finalTargetNetProfitUsdt;
+        }
+
+        @JsonIgnore
+        public int getMaxActiveTrades() {
+            return maxConcurrentPositions;
+        }
+
+        @JsonIgnore
+        public void setMaxActiveTrades(int maxActiveTrades) {
+            this.maxConcurrentPositions = maxActiveTrades;
         }
     }
 

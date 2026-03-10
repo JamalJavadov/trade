@@ -11,6 +11,7 @@ import com.tradebot.operator.OperatorPermissionRepository;
 import com.tradebot.operator.PermissionCatalog;
 import com.tradebot.repository.AppSettingsRepository;
 import com.tradebot.repository.ControlCenterStateRepository;
+import com.tradebot.service.BudgetTargetAutoExecutionLifecycleService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 
@@ -18,6 +19,7 @@ import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -34,8 +36,11 @@ class ControlCenterSettingsProviderTest {
         ObjectProvider<OperatorPermissionRepository> operatorPermissionRepositoryProvider = mock(ObjectProvider.class);
         @SuppressWarnings("unchecked")
         ObjectProvider<DemoTradingLifecycleService> demoLifecycleProvider = mock(ObjectProvider.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<BudgetTargetAutoExecutionLifecycleService> autoLifecycleProvider = mock(ObjectProvider.class);
         when(operatorPermissionRepositoryProvider.getIfAvailable()).thenReturn(null);
         when(demoLifecycleProvider.getIfAvailable()).thenReturn(null);
+        when(autoLifecycleProvider.getIfAvailable()).thenReturn(null);
 
         ObjectMapper objectMapper = new ObjectMapper();
         ControlCenterSettingsProvider provider = new ControlCenterSettingsProvider(
@@ -44,6 +49,7 @@ class ControlCenterSettingsProviderTest {
                 operatorPermissionRepositoryProvider,
                 new PermissionCatalog(),
                 demoLifecycleProvider,
+                autoLifecycleProvider,
                 objectMapper,
                 new ControlCenterCache());
 
@@ -155,8 +161,11 @@ class ControlCenterSettingsProviderTest {
         ObjectProvider<OperatorPermissionRepository> operatorPermissionRepositoryProvider = mock(ObjectProvider.class);
         @SuppressWarnings("unchecked")
         ObjectProvider<DemoTradingLifecycleService> demoLifecycleProvider = mock(ObjectProvider.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<BudgetTargetAutoExecutionLifecycleService> autoLifecycleProvider = mock(ObjectProvider.class);
         when(operatorPermissionRepositoryProvider.getIfAvailable()).thenReturn(null);
         when(demoLifecycleProvider.getIfAvailable()).thenReturn(null);
+        when(autoLifecycleProvider.getIfAvailable()).thenReturn(null);
 
         ObjectMapper objectMapper = new ObjectMapper();
         ControlCenterSettingsProvider provider = new ControlCenterSettingsProvider(
@@ -165,6 +174,7 @@ class ControlCenterSettingsProviderTest {
                 operatorPermissionRepositoryProvider,
                 new PermissionCatalog(),
                 demoLifecycleProvider,
+                autoLifecycleProvider,
                 objectMapper,
                 new ControlCenterCache());
 
@@ -207,5 +217,76 @@ class ControlCenterSettingsProviderTest {
         assertThat(entity.getConfigJson()).doesNotContain("live.execution.view");
         assertThat(entity.getConfigJson()).doesNotContain("live.execution.run");
         assertThat(entity.getConfigJson()).doesNotContain("live.execution.reconcile");
+    }
+
+    @Test
+    void patchNormalizesBudgetTargetAutoExecutionConcurrencyAndRejectsNonPositiveTarget() {
+        ControlCenterStateRepository stateRepository = mock(ControlCenterStateRepository.class);
+        AppSettingsRepository appSettingsRepository = mock(AppSettingsRepository.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<OperatorPermissionRepository> operatorPermissionRepositoryProvider = mock(ObjectProvider.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<DemoTradingLifecycleService> demoLifecycleProvider = mock(ObjectProvider.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<BudgetTargetAutoExecutionLifecycleService> autoLifecycleProvider = mock(ObjectProvider.class);
+        when(operatorPermissionRepositoryProvider.getIfAvailable()).thenReturn(null);
+        when(demoLifecycleProvider.getIfAvailable()).thenReturn(null);
+        when(autoLifecycleProvider.getIfAvailable()).thenReturn(null);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        ControlCenterSettingsProvider provider = new ControlCenterSettingsProvider(
+                stateRepository,
+                appSettingsRepository,
+                operatorPermissionRepositoryProvider,
+                new PermissionCatalog(),
+                demoLifecycleProvider,
+                autoLifecycleProvider,
+                objectMapper,
+                new ControlCenterCache());
+
+        ControlCenterStateEntity entity = new ControlCenterStateEntity();
+        entity.setId(1);
+        entity.setVersion(1);
+        entity.setUpdatedAt(Instant.parse("2026-03-07T00:00:00Z"));
+        entity.setUpdatedBy("seed");
+        entity.setConfigJson("{}");
+
+        when(stateRepository.findById(1)).thenReturn(Optional.of(entity));
+        when(stateRepository.save(any(ControlCenterStateEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ObjectNode validPatch = objectMapper.createObjectNode();
+        ObjectNode budgetTarget = validPatch.putObject("budgetTargetAutoExecution");
+        budgetTarget.put("enabled", true);
+        budgetTarget.put("defaultBudgetUsdt", 75);
+        budgetTarget.put("defaultTargetProfitUsdt", 12);
+        budgetTarget.put("maxConcurrentPositions", 9);
+        budgetTarget.put("allowCloseAllOnTarget", false);
+        budgetTarget.put("sessionTimeoutMinutes", 120);
+
+        ControlCenterConfig config = provider.patch(validPatch, "budget-target-valid", "tester");
+
+        assertThat(config.getBudgetTargetAutoExecution().isEnabled()).isTrue();
+        assertThat(config.getBudgetTargetAutoExecution().getDefaultBudgetUsdt()).isEqualByComparingTo("75");
+        assertThat(config.getBudgetTargetAutoExecution().getDefaultTargetProfitUsdt()).isEqualByComparingTo("12");
+        assertThat(config.getBudgetTargetAutoExecution().getMaxConcurrentPositions()).isEqualTo(3);
+        assertThat(config.getBudgetTargetAutoExecution().isAllowCloseAllOnTarget()).isTrue();
+        assertThat(config.getBudgetTargetAutoExecution().getSessionTimeoutMinutes()).isEqualTo(120);
+        assertThat(entity.getConfigJson()).contains("\"maxConcurrentPositions\":3");
+        assertThat(entity.getConfigJson()).contains("\"allowCloseAllOnTarget\":true");
+
+        ObjectNode invalidPatch = objectMapper.createObjectNode();
+        ObjectNode invalidBudgetTarget = invalidPatch.putObject("budgetTargetAutoExecution");
+        invalidBudgetTarget.put("defaultTargetProfitUsdt", 0);
+
+        assertThatThrownBy(() -> provider.patch(invalidPatch, "budget-target-invalid", "tester"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("budgetTargetAutoExecution.defaultTargetProfitUsdt");
+
+        ObjectNode armedPatch = objectMapper.createObjectNode();
+        armedPatch.putObject("budgetTargetAutoExecution").put("armed", true);
+        assertThatThrownBy(() -> provider.patch(armedPatch, "budget-target-armed", "tester"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("budgetTargetAutoExecution.armed");
     }
 }

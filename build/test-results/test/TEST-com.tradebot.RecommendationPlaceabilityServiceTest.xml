@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.tradebot.RecommendationPlaceabilityServiceTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:24" hostname="CamaltekiMacBook-Pro.local" time="0.045">
+<testsuite name="com.tradebot.RecommendationPlaceabilityServiceTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:41" hostname="CamaltekiMacBook-Pro.local" time="0.049">
   <properties/>
-  <testcase name="fallbackToMetricsWhenOrderFieldsMissing()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.023"/>
+  <testcase name="fallbackToMetricsWhenOrderFieldsMissing()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.024"/>
   <testcase name="missingDataReturnsMissingDataReason()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.0"/>
   <testcase name="rrBelow2ReturnsBlockedReason()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.001"/>
   <testcase name="shortValidityReturnsPlaceableTrue()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.0"/>
-  <testcase name="missingTickSizeReturnsMissingTickSize()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.001"/>
-  <testcase name="missingRecommendationReturnsNotFoundPayload()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.0"/>
-  <testcase name="longValidityReturnsPlaceableTrue()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.001"/>
+  <testcase name="missingTickSizeReturnsMissingTickSize()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.0"/>
+  <testcase name="missingRecommendationReturnsNotFoundPayload()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.001"/>
+  <testcase name="longValidityReturnsPlaceableTrue()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.0"/>
   <testcase name="tickGapViolationReturnsSuggestedAdjustments()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.001"/>
-  <testcase name="binance429ReturnsRateLimitReason()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.017"/>
+  <testcase name="binance429ReturnsRateLimitReason()" classname="com.tradebot.RecommendationPlaceabilityServiceTest" time="0.021"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

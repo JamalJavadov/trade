@@ -9,6 +9,7 @@ import com.tradebot.service.LiveTradingBlockerCodes;
 import com.tradebot.trace.TraceIdContext;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.flywaydb.core.api.FlywayException;
 import org.springframework.core.io.buffer.DataBufferLimitException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,9 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.net.ConnectException;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -32,10 +36,15 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @ControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    private static final Pattern HIKARI_TIMEOUT_PATTERN = Pattern.compile("request timed out after\\s+(\\d+)ms",
+            Pattern.CASE_INSENSITIVE);
 
     @ExceptionHandler(ScanRunningException.class)
     public ResponseEntity<ApiErrorResponse> handleScanRunning(ScanRunningException ex, HttpServletRequest request) {
@@ -446,17 +455,168 @@ public class GlobalExceptionHandler {
     }
 
     private Map<String, Object> databaseDetails(Throwable ex) {
-        Map<String, Object> details = new HashMap<>();
-        Throwable rootCause = ex != null && ex.getCause() != null ? ex.getCause() : ex;
+        Map<String, Object> details = new LinkedHashMap<>();
+        Throwable rootCause = rootCause(ex);
+        String rootMessage = firstNonBlankMessage(rootCause, ex);
+        String sqlState = firstSqlState(ex);
+        String failureKind = classifyDatabaseFailure(ex, rootCause, sqlState, rootMessage);
+
+        details.put("failureKind", failureKind);
         if (rootCause != null) {
             details.put("rootExceptionClass", rootCause.getClass().getSimpleName());
-            if (rootCause.getMessage() != null && !rootCause.getMessage().isBlank()) {
-                details.put("rootMessage", rootCause.getMessage());
-            }
-            if (rootCause instanceof SQLException sqlException) {
-                details.put("sqlState", sqlException.getSQLState());
+            if (rootMessage != null && !rootMessage.isBlank()) {
+                details.put("rootMessage", rootMessage);
             }
         }
+        if (sqlState != null && !sqlState.isBlank()) {
+            details.put("sqlState", sqlState);
+        }
+        Integer acquisitionTimeoutMs = extractHikariTimeoutMillis(ex);
+        if (acquisitionTimeoutMs != null) {
+            details.put("acquisitionTimeoutMs", acquisitionTimeoutMs);
+        }
+        String retryHint = databaseRetryHint(failureKind);
+        if (retryHint != null) {
+            details.put("retryHint", retryHint);
+        }
         return detailsWithFallback(details, "Database error or connectivity issue.");
+    }
+
+    private Throwable rootCause(Throwable ex) {
+        if (ex == null) {
+            return null;
+        }
+        Throwable current = ex;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private String firstSqlState(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            if (current instanceof SQLException sqlException
+                    && sqlException.getSQLState() != null
+                    && !sqlException.getSQLState().isBlank()) {
+                return sqlException.getSQLState();
+            }
+            current = current.getCause();
+        }
+        return null;
+    }
+
+    private String firstNonBlankMessage(Throwable... throwables) {
+        if (throwables == null) {
+            return null;
+        }
+        for (Throwable throwable : throwables) {
+            if (throwable != null
+                    && throwable.getMessage() != null
+                    && !throwable.getMessage().isBlank()) {
+                return throwable.getMessage();
+            }
+        }
+        return null;
+    }
+
+    private String classifyDatabaseFailure(Throwable ex, Throwable rootCause, String sqlState, String rootMessage) {
+        if (containsCause(ex, FlywayException.class)) {
+            return "MIGRATION_FAILURE";
+        }
+        if (isPoolExhaustion(ex, rootMessage)) {
+            return "POOL_EXHAUSTED";
+        }
+        if (isAuthenticationFailure(ex, sqlState, rootMessage)) {
+            return "AUTH_FAILED";
+        }
+        if (isNetworkFailure(ex, sqlState, rootCause, rootMessage)) {
+            return "UNREACHABLE";
+        }
+        return "DATABASE_ERROR";
+    }
+
+    private boolean isPoolExhaustion(Throwable ex, String rootMessage) {
+        return containsMessage(ex, "connection is not available")
+                || containsMessage(ex, "threads awaiting connection")
+                || containsIgnoreCase(rootMessage, "HikariPool");
+    }
+
+    private boolean isAuthenticationFailure(Throwable ex, String sqlState, String rootMessage) {
+        return (sqlState != null && sqlState.startsWith("28"))
+                || containsMessage(ex, "password authentication failed")
+                || containsMessage(ex, "authentication failed")
+                || containsMessage(ex, "role does not exist")
+                || containsIgnoreCase(rootMessage, "SCRAM");
+    }
+
+    private boolean isNetworkFailure(Throwable ex, String sqlState, Throwable rootCause, String rootMessage) {
+        return (sqlState != null && sqlState.startsWith("08"))
+                || containsCause(ex, ConnectException.class)
+                || containsCause(ex, UnknownHostException.class)
+                || containsCause(ex, SocketException.class)
+                || containsMessage(ex, "connection refused")
+                || containsMessage(ex, "connection reset")
+                || containsMessage(ex, "connection attempt failed")
+                || containsMessage(ex, "the connection attempt failed")
+                || containsMessage(ex, "connection to server")
+                || containsIgnoreCase(rootMessage, "network adapter");
+    }
+
+    private boolean containsCause(Throwable ex, Class<? extends Throwable> type) {
+        Throwable current = ex;
+        while (current != null) {
+            if (type.isInstance(current)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private boolean containsMessage(Throwable ex, String fragment) {
+        Throwable current = ex;
+        while (current != null) {
+            if (containsIgnoreCase(current.getMessage(), fragment)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private boolean containsIgnoreCase(String text, String fragment) {
+        return text != null
+                && fragment != null
+                && text.toLowerCase().contains(fragment.toLowerCase());
+    }
+
+    private Integer extractHikariTimeoutMillis(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null) {
+                Matcher matcher = HIKARI_TIMEOUT_PATTERN.matcher(message);
+                if (matcher.find()) {
+                    return Integer.parseInt(matcher.group(1));
+                }
+            }
+            current = current.getCause();
+        }
+        return null;
+    }
+
+    private String databaseRetryHint(String failureKind) {
+        return switch (failureKind) {
+            case "POOL_EXHAUSTED" ->
+                "The connection pool ran out of available JDBC connections. Check long-running transactions, leaked request-scoped EntityManagers, or stuck async/SSE requests.";
+            case "AUTH_FAILED" ->
+                "Verify the configured datasource username, password, and database name.";
+            case "UNREACHABLE" ->
+                "Verify PostgreSQL is running and reachable on the configured host and port.";
+            case "MIGRATION_FAILURE" ->
+                "Inspect Flyway migration logs and schema history before retrying startup.";
+            default -> null;
+        };
     }
 }

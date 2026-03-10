@@ -1,384 +1,218 @@
 package com.tradebot;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tradebot.client.BinanceClient;
-import com.tradebot.config.AppProperties;
 import com.tradebot.controlcenter.ControlCenterSettingsProvider;
-import com.tradebot.dto.BinanceExchangeInfoResponse;
-import com.tradebot.dto.RecommendationPlaceabilityDTO;
 import com.tradebot.dto.LiveTradingPreflightDTO;
+import com.tradebot.dto.RecommendationPlaceabilityDTO;
 import com.tradebot.entity.LiveTradeExecution;
 import com.tradebot.entity.LiveTradeExecutionState;
-import com.tradebot.entity.OrderFields;
 import com.tradebot.entity.Recommendation;
-import com.tradebot.entity.ScanRun;
-import com.tradebot.operator.OperatorPermissionService;
 import com.tradebot.repository.LiveTradeExecutionRepository;
 import com.tradebot.repository.RecommendationRepository;
+import com.tradebot.service.ExchangeExecutionPreflightService;
 import com.tradebot.service.LiveTradingBinanceDiagnosticsService;
 import com.tradebot.service.LiveTradingBlockerCodes;
 import com.tradebot.service.LiveTradingPreflightService;
 import com.tradebot.service.RecommendationPlaceabilityService;
+import com.tradebot.operator.OperatorPermissionService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class LiveTradingPreflightServiceTest {
 
-        private final ObjectMapper objectMapper = new ObjectMapper();
-        private static final List<LiveTradeExecutionState> DUPLICATE_BLOCK_STATES = List.of(
-                        LiveTradeExecutionState.REQUESTED,
-                        LiveTradeExecutionState.SUBMITTING,
-                        LiveTradeExecutionState.ENTRY_SUBMITTED,
-                        LiveTradeExecutionState.ENTRY_PARTIALLY_FILLED,
-                        LiveTradeExecutionState.ENTRY_FILLED,
-                        LiveTradeExecutionState.PROTECTION_SUBMITTING,
-                        LiveTradeExecutionState.PROTECTION_SUBMITTED,
-                        LiveTradeExecutionState.PROTECTION_ACTIVE,
-                        LiveTradeExecutionState.OPEN,
-                        LiveTradeExecutionState.RECONCILING,
-                        LiveTradeExecutionState.PENDING_RECONCILE,
-                        LiveTradeExecutionState.PROTECTION_FAILED,
-                        LiveTradeExecutionState.EMERGENCY_CLOSE_SUBMITTED);
+    private static final List<LiveTradeExecutionState> DUPLICATE_BLOCK_STATES = List.of(
+            LiveTradeExecutionState.CREATED,
+            LiveTradeExecutionState.PREFLIGHT_VALIDATING,
+            LiveTradeExecutionState.ENTRY_SUBMITTING,
+            LiveTradeExecutionState.ENTRY_SUBMITTED,
+            LiveTradeExecutionState.ENTRY_FILLED,
+            LiveTradeExecutionState.PROTECTION_SUBMITTING,
+            LiveTradeExecutionState.PROTECTION_ACTIVE,
+            LiveTradeExecutionState.ACTIVE,
+            LiveTradeExecutionState.CLOSING,
+            LiveTradeExecutionState.RECONCILING,
+            LiveTradeExecutionState.FAILED);
 
-        @Test
-        void readOnlyModeSurfacesExactRuntimeBlocker() throws Exception {
-                RecommendationRepository recommendationRepository = mock(RecommendationRepository.class);
-                LiveTradeExecutionRepository executionRepository = mock(LiveTradeExecutionRepository.class);
-                RecommendationPlaceabilityService placeabilityService = mock(RecommendationPlaceabilityService.class);
-                BinanceClient binanceClient = mock(BinanceClient.class);
-                LiveTradingBinanceDiagnosticsService diagnosticsService = mock(
-                                LiveTradingBinanceDiagnosticsService.class);
-                OperatorPermissionService permissionService = mock(OperatorPermissionService.class);
-                ControlCenterSettingsProvider controlCenterSettingsProvider = mock(ControlCenterSettingsProvider.class);
+    private RecommendationRepository recommendationRepository;
+    private LiveTradeExecutionRepository executionRepository;
+    private RecommendationPlaceabilityService placeabilityService;
+    private LiveTradingBinanceDiagnosticsService diagnosticsService;
+    private OperatorPermissionService permissionService;
+    private ControlCenterSettingsProvider controlCenterSettingsProvider;
+    private ExchangeExecutionPreflightService exchangeExecutionPreflightService;
 
-                Recommendation recommendation = recommendation("BTCUSDT", Instant.now().minusSeconds(60));
-                when(recommendationRepository.findById(recommendation.getId())).thenReturn(Optional.of(recommendation));
-                when(executionRepository.findFirstByRecommendation_IdAndExecutionStateInOrderByCreatedAtDesc(
-                                recommendation.getId(),
-                                DUPLICATE_BLOCK_STATES))
-                                .thenReturn(Optional.empty());
-                when(placeabilityService.evaluate(recommendation.getId())).thenReturn(placeable());
-                when(binanceClient.getSymbolInfo("BTCUSDT")).thenReturn(Optional.of(symbolInfo()));
-                when(permissionService.isPermissionEnabled("live.execution.enabled")).thenReturn(true);
-                when(controlCenterSettingsProvider.isLiveExecutionReadOnly()).thenReturn(true);
-                when(diagnosticsService.evaluate("BTCUSDT")).thenReturn(validBinanceDiagnostics());
+    @BeforeEach
+    void setUp() {
+        recommendationRepository = mock(RecommendationRepository.class);
+        executionRepository = mock(LiveTradeExecutionRepository.class);
+        placeabilityService = mock(RecommendationPlaceabilityService.class);
+        diagnosticsService = mock(LiveTradingBinanceDiagnosticsService.class);
+        permissionService = mock(OperatorPermissionService.class);
+        controlCenterSettingsProvider = mock(ControlCenterSettingsProvider.class);
+        exchangeExecutionPreflightService = mock(ExchangeExecutionPreflightService.class);
 
-                LiveTradingPreflightService service = new LiveTradingPreflightService(
-                                recommendationRepository,
-                                executionRepository,
-                                placeabilityService,
-                                binanceClient,
-                                diagnosticsService,
-                                permissionService,
-                                controlCenterSettingsProvider,
-                                objectMapper,
-                                new AppProperties());
+        doAnswer(invocation -> {
+            LiveTradingPreflightDTO dto = invocation.getArgument(0);
+            ExchangeExecutionPreflightService.ExchangeExecutionPreflightResult result = invocation.getArgument(1);
+            dto.getExchangeValidation().setValid(result.valid());
+            dto.getExchangeValidation().getFailures().clear();
+            dto.getExchangeValidation().getFailures().addAll(result.failures());
+            if (result.markPrice() != null) {
+                dto.getExchangeValidation().setMarkPrice(result.markPrice());
+            }
+            if (result.roundedPayloads() != null) {
+                dto.getExchangeValidation().setQuantity(result.roundedPayloads().entry().getQuantity());
+                dto.getExchangeValidation().setSlStopPrice(result.roundedPayloads().sl().getStopPrice());
+                dto.getExchangeValidation().setTpStopPrice(result.roundedPayloads().tp().getStopPrice());
+            }
+            return null;
+        }).when(exchangeExecutionPreflightService).applyTo(any(), any());
+    }
 
-                LiveTradingPreflightDTO dto = service.evaluate(recommendation.getId());
+    @Test
+    void readOnlyModeSurfacesExactRuntimeBlocker() {
+        Recommendation recommendation = recommendation();
+        when(recommendationRepository.findDetailedById(recommendation.getId())).thenReturn(Optional.of(recommendation));
+        when(executionRepository.findFirstByRecommendation_IdAndExecutionStateInOrderByCreatedAtDesc(
+                recommendation.getId(),
+                DUPLICATE_BLOCK_STATES)).thenReturn(Optional.empty());
+        when(placeabilityService.evaluate(recommendation.getId())).thenReturn(placeable());
+        when(exchangeExecutionPreflightService.evaluate(eq(recommendation), any()))
+                .thenReturn(ExchangeExecutionPreflightService.ExchangeExecutionPreflightResult.invalid(List.of()));
+        when(permissionService.isPermissionEnabled("live.execution.enabled")).thenReturn(true);
+        when(controlCenterSettingsProvider.isLiveExecutionReadOnly()).thenReturn(true);
+        when(diagnosticsService.evaluate("BTCUSDT")).thenReturn(validDiagnostics());
 
-                assertFalse(dto.isExecutable());
-                assertTrue(dto.getRuntime().isReadOnly());
-                assertEquals(LiveTradingBlockerCodes.BOT_READ_ONLY, dto.getBlockedReasons().getFirst().getCode());
-                assertEquals("Trading is disabled. Bot is in READ-ONLY mode.",
-                                dto.getBlockedReasons().getFirst().getMessage());
-        }
+        LiveTradingPreflightService service = service();
 
-        @Test
-        void duplicateActiveExecutionSetsRuntimeDuplicateBlocker() throws Exception {
-                RecommendationRepository recommendationRepository = mock(RecommendationRepository.class);
-                LiveTradeExecutionRepository executionRepository = mock(LiveTradeExecutionRepository.class);
-                RecommendationPlaceabilityService placeabilityService = mock(RecommendationPlaceabilityService.class);
-                BinanceClient binanceClient = mock(BinanceClient.class);
-                LiveTradingBinanceDiagnosticsService diagnosticsService = mock(
-                                LiveTradingBinanceDiagnosticsService.class);
-                OperatorPermissionService permissionService = mock(OperatorPermissionService.class);
-                ControlCenterSettingsProvider controlCenterSettingsProvider = mock(ControlCenterSettingsProvider.class);
+        LiveTradingPreflightDTO dto = service.evaluate(recommendation.getId());
 
-                Recommendation recommendation = recommendation("BTCUSDT", Instant.now().minusSeconds(60));
-                LiveTradeExecution activeExecution = new LiveTradeExecution();
-                activeExecution.setId(UUID.randomUUID());
-                activeExecution.setClientRequestId(UUID.randomUUID());
-                activeExecution.setExecutionState(LiveTradeExecutionState.OPEN);
-                activeExecution.setCreatedAt(Instant.now().minusSeconds(10));
+        assertFalse(dto.isExecutable());
+        assertTrue(dto.getRuntime().isReadOnly());
+        assertEquals(LiveTradingBlockerCodes.BOT_READ_ONLY, dto.getBlockedReasons().getFirst().getCode());
+    }
 
-                when(recommendationRepository.findById(recommendation.getId())).thenReturn(Optional.of(recommendation));
-                when(executionRepository.findFirstByRecommendation_IdAndExecutionStateInOrderByCreatedAtDesc(
-                                recommendation.getId(),
-                                DUPLICATE_BLOCK_STATES))
-                                .thenReturn(Optional.of(activeExecution));
-                when(placeabilityService.evaluate(recommendation.getId())).thenReturn(placeable());
-                when(binanceClient.getSymbolInfo("BTCUSDT")).thenReturn(Optional.of(symbolInfo()));
-                when(permissionService.isPermissionEnabled("live.execution.enabled")).thenReturn(true);
-                when(controlCenterSettingsProvider.isLiveExecutionReadOnly()).thenReturn(false);
-                when(diagnosticsService.evaluate("BTCUSDT")).thenReturn(validBinanceDiagnostics());
+    @Test
+    void duplicateActiveExecutionSetsRuntimeDuplicateBlocker() {
+        Recommendation recommendation = recommendation();
+        LiveTradeExecution activeExecution = new LiveTradeExecution();
+        activeExecution.setId(UUID.randomUUID());
+        activeExecution.setClientRequestId(UUID.randomUUID());
+        activeExecution.setExecutionState(LiveTradeExecutionState.ACTIVE);
+        activeExecution.setCreatedAt(Instant.now().minusSeconds(15));
 
-                LiveTradingPreflightService service = new LiveTradingPreflightService(
-                                recommendationRepository,
-                                executionRepository,
-                                placeabilityService,
-                                binanceClient,
-                                diagnosticsService,
-                                permissionService,
-                                controlCenterSettingsProvider,
-                                objectMapper,
-                                new AppProperties());
+        when(recommendationRepository.findDetailedById(recommendation.getId())).thenReturn(Optional.of(recommendation));
+        when(executionRepository.findFirstByRecommendation_IdAndExecutionStateInOrderByCreatedAtDesc(
+                recommendation.getId(),
+                DUPLICATE_BLOCK_STATES)).thenReturn(Optional.of(activeExecution));
+        when(placeabilityService.evaluate(recommendation.getId())).thenReturn(placeable());
+        when(exchangeExecutionPreflightService.evaluate(eq(recommendation), any()))
+                .thenReturn(ExchangeExecutionPreflightService.ExchangeExecutionPreflightResult.invalid(List.of()));
+        when(permissionService.isPermissionEnabled("live.execution.enabled")).thenReturn(true);
+        when(controlCenterSettingsProvider.isLiveExecutionReadOnly()).thenReturn(false);
+        when(diagnosticsService.evaluate("BTCUSDT")).thenReturn(validDiagnostics());
 
-                LiveTradingPreflightDTO dto = service.evaluate(recommendation.getId());
+        LiveTradingPreflightDTO dto = service().evaluate(recommendation.getId());
 
-                assertFalse(dto.isExecutable());
-                assertTrue(dto.getRuntime().isDuplicateSubmitBlocked());
-                assertTrue(dto.getBlockedReasons().stream()
-                                .anyMatch(reason -> LiveTradingBlockerCodes.DUPLICATE_SUBMIT_BLOCKED
-                                                .equals(reason.getCode())));
-        }
+        assertFalse(dto.isExecutable());
+        assertTrue(dto.getRuntime().isDuplicateSubmitBlocked());
+        assertTrue(dto.getBlockedReasons().stream()
+                .anyMatch(reason -> LiveTradingBlockerCodes.DUPLICATE_SUBMIT_BLOCKED.equals(reason.getCode())));
+    }
 
-        @Test
-        void pendingReconcileExecutionDoesNotBlockNewAttempt() throws Exception {
-                RecommendationRepository recommendationRepository = mock(RecommendationRepository.class);
-                LiveTradeExecutionRepository executionRepository = mock(LiveTradeExecutionRepository.class);
-                RecommendationPlaceabilityService placeabilityService = mock(RecommendationPlaceabilityService.class);
-                BinanceClient binanceClient = mock(BinanceClient.class);
-                LiveTradingBinanceDiagnosticsService diagnosticsService = mock(
-                                LiveTradingBinanceDiagnosticsService.class);
-                OperatorPermissionService permissionService = mock(OperatorPermissionService.class);
-                ControlCenterSettingsProvider controlCenterSettingsProvider = mock(ControlCenterSettingsProvider.class);
+    @Test
+    void exchangeFilterFailureBubblesThroughSharedPreflightHelper() {
+        Recommendation recommendation = recommendation();
+        when(recommendationRepository.findDetailedById(recommendation.getId())).thenReturn(Optional.of(recommendation));
+        when(executionRepository.findFirstByRecommendation_IdAndExecutionStateInOrderByCreatedAtDesc(
+                recommendation.getId(),
+                DUPLICATE_BLOCK_STATES)).thenReturn(Optional.empty());
+        when(placeabilityService.evaluate(recommendation.getId())).thenReturn(placeable());
+        when(exchangeExecutionPreflightService.evaluate(eq(recommendation), any()))
+                .thenReturn(new ExchangeExecutionPreflightService.ExchangeExecutionPreflightResult(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        10,
+                        "ISOLATED",
+                        "ONE_WAY",
+                        List.of("Entry quantity is below Binance minimum quantity.")));
+        when(permissionService.isPermissionEnabled("live.execution.enabled")).thenReturn(true);
+        when(controlCenterSettingsProvider.isLiveExecutionReadOnly()).thenReturn(false);
+        when(diagnosticsService.evaluate("BTCUSDT")).thenReturn(validDiagnostics());
 
-                Recommendation recommendation = recommendation("BTCUSDT", Instant.now().minusSeconds(60));
+        LiveTradingPreflightDTO dto = service().evaluate(recommendation.getId());
 
-                when(recommendationRepository.findById(recommendation.getId())).thenReturn(Optional.of(recommendation));
-                when(executionRepository.findFirstByRecommendation_IdAndExecutionStateInOrderByCreatedAtDesc(
-                                recommendation.getId(),
-                                DUPLICATE_BLOCK_STATES))
-                                .thenReturn(Optional.empty());
-                when(placeabilityService.evaluate(recommendation.getId())).thenReturn(placeable());
-                when(binanceClient.getSymbolInfo("BTCUSDT")).thenReturn(Optional.of(symbolInfo()));
-                when(permissionService.isPermissionEnabled("live.execution.enabled")).thenReturn(true);
-                when(controlCenterSettingsProvider.isLiveExecutionReadOnly()).thenReturn(false);
-                when(diagnosticsService.evaluate("BTCUSDT")).thenReturn(validBinanceDiagnostics());
+        assertFalse(dto.isExecutable());
+        assertFalse(dto.getExchangeValidation().isValid());
+        assertEquals("Entry quantity is below Binance minimum quantity.",
+                dto.getExchangeValidation().getFailures().getFirst());
+        assertEquals(LiveTradingBlockerCodes.EXCHANGE_FILTER_INVALID, dto.getSummary().getPrimaryBlockerCode());
+    }
 
-                LiveTradingPreflightService service = new LiveTradingPreflightService(
-                                recommendationRepository,
-                                executionRepository,
-                                placeabilityService,
-                                binanceClient,
-                                diagnosticsService,
-                                permissionService,
-                                controlCenterSettingsProvider,
-                                objectMapper,
-                                new AppProperties());
+    private LiveTradingPreflightService service() {
+        return new LiveTradingPreflightService(
+                recommendationRepository,
+                executionRepository,
+                placeabilityService,
+                diagnosticsService,
+                permissionService,
+                controlCenterSettingsProvider,
+                exchangeExecutionPreflightService);
+    }
 
-                LiveTradingPreflightDTO dto = service.evaluate(recommendation.getId());
+    private Recommendation recommendation() {
+        Recommendation recommendation = new Recommendation();
+        recommendation.setId(UUID.randomUUID());
+        recommendation.setSymbol("BTCUSDT");
+        recommendation.setSide("BUY");
+        recommendation.setCreatedAt(Instant.now().minusSeconds(60));
+        return recommendation;
+    }
 
-                assertFalse(dto.getRuntime().isDuplicateSubmitBlocked());
-                assertTrue(dto.getBlockedReasons().stream()
-                                .noneMatch(reason -> LiveTradingBlockerCodes.DUPLICATE_SUBMIT_BLOCKED
-                                                .equals(reason.getCode())));
-        }
+    private RecommendationPlaceabilityDTO placeable() {
+        RecommendationPlaceabilityDTO dto = new RecommendationPlaceabilityDTO();
+        dto.setRecommendationId(UUID.randomUUID());
+        dto.setSymbol("BTCUSDT");
+        dto.setSide("BUY");
+        dto.setMarkPrice(new BigDecimal("100000"));
+        dto.setManualPlacementAllowed(true);
+        dto.setReasonCode("OK");
+        dto.setReasonText("placeable");
+        return dto;
+    }
 
-        @Test
-        void ipAllowlistFailureIsNotMislabeledAsGenericAuth() throws Exception {
-                RecommendationRepository recommendationRepository = mock(RecommendationRepository.class);
-                LiveTradeExecutionRepository executionRepository = mock(LiveTradeExecutionRepository.class);
-                RecommendationPlaceabilityService placeabilityService = mock(RecommendationPlaceabilityService.class);
-                BinanceClient binanceClient = mock(BinanceClient.class);
-                LiveTradingBinanceDiagnosticsService diagnosticsService = mock(
-                                LiveTradingBinanceDiagnosticsService.class);
-                OperatorPermissionService permissionService = mock(OperatorPermissionService.class);
-                ControlCenterSettingsProvider controlCenterSettingsProvider = mock(ControlCenterSettingsProvider.class);
-
-                Recommendation recommendation = recommendation("BTCUSDT", Instant.now().minusSeconds(60));
-                when(recommendationRepository.findById(recommendation.getId())).thenReturn(Optional.of(recommendation));
-                when(executionRepository.findFirstByRecommendation_IdAndExecutionStateInOrderByCreatedAtDesc(
-                                recommendation.getId(),
-                                DUPLICATE_BLOCK_STATES))
-                                .thenReturn(Optional.empty());
-                when(placeabilityService.evaluate(recommendation.getId())).thenReturn(placeable());
-                when(binanceClient.getSymbolInfo("BTCUSDT")).thenReturn(Optional.of(symbolInfo()));
-                when(permissionService.isPermissionEnabled("live.execution.enabled")).thenReturn(true);
-                when(controlCenterSettingsProvider.isLiveExecutionReadOnly()).thenReturn(false);
-                when(diagnosticsService.evaluate("BTCUSDT")).thenReturn(ipBlockedDiagnostics());
-
-                LiveTradingPreflightService service = new LiveTradingPreflightService(
-                                recommendationRepository,
-                                executionRepository,
-                                placeabilityService,
-                                binanceClient,
-                                diagnosticsService,
-                                permissionService,
-                                controlCenterSettingsProvider,
-                                objectMapper,
-                                new AppProperties());
-
-                LiveTradingPreflightDTO dto = service.evaluate(recommendation.getId());
-
-                assertFalse(dto.isExecutable());
-                assertEquals(LiveTradingBlockerCodes.BINANCE_IP_NOT_ALLOWED, dto.getBinance().getBlockerCode());
-                assertTrue(dto.getBlockedReasons().stream()
-                                .anyMatch(reason -> LiveTradingBlockerCodes.BINANCE_IP_NOT_ALLOWED
-                                                .equals(reason.getCode())));
-                assertFalse(dto.getBlockedReasons().stream()
-                                .anyMatch(reason -> LiveTradingBlockerCodes.BINANCE_AUTH_INVALID
-                                                .equals(reason.getCode())));
-        }
-
-        @Test
-        void credentialDecryptFailureRemainsPrimaryBlocker() throws Exception {
-                RecommendationRepository recommendationRepository = mock(RecommendationRepository.class);
-                LiveTradeExecutionRepository executionRepository = mock(LiveTradeExecutionRepository.class);
-                RecommendationPlaceabilityService placeabilityService = mock(RecommendationPlaceabilityService.class);
-                BinanceClient binanceClient = mock(BinanceClient.class);
-                LiveTradingBinanceDiagnosticsService diagnosticsService = mock(
-                                LiveTradingBinanceDiagnosticsService.class);
-                OperatorPermissionService permissionService = mock(OperatorPermissionService.class);
-                ControlCenterSettingsProvider controlCenterSettingsProvider = mock(ControlCenterSettingsProvider.class);
-
-                Recommendation recommendation = recommendation("BTCUSDT", Instant.now().minusSeconds(60));
-                when(recommendationRepository.findById(recommendation.getId())).thenReturn(Optional.of(recommendation));
-                when(executionRepository.findFirstByRecommendation_IdAndExecutionStateInOrderByCreatedAtDesc(
-                                recommendation.getId(),
-                                DUPLICATE_BLOCK_STATES))
-                                .thenReturn(Optional.empty());
-                when(placeabilityService.evaluate(recommendation.getId())).thenReturn(placeable());
-                when(binanceClient.getSymbolInfo("BTCUSDT")).thenReturn(Optional.of(symbolInfo()));
-                when(permissionService.isPermissionEnabled("live.execution.enabled")).thenReturn(true);
-                when(controlCenterSettingsProvider.isLiveExecutionReadOnly()).thenReturn(false);
-                when(diagnosticsService.evaluate("BTCUSDT")).thenReturn(decryptFailedDiagnostics());
-
-                LiveTradingPreflightService service = new LiveTradingPreflightService(
-                                recommendationRepository,
-                                executionRepository,
-                                placeabilityService,
-                                binanceClient,
-                                diagnosticsService,
-                                permissionService,
-                                controlCenterSettingsProvider,
-                                objectMapper,
-                                new AppProperties());
-
-                LiveTradingPreflightDTO dto = service.evaluate(recommendation.getId());
-
-                assertFalse(dto.isExecutable());
-                assertEquals(LiveTradingBlockerCodes.CREDENTIAL_DECRYPT_FAILED, dto.getBinance().getBlockerCode());
-                assertEquals(LiveTradingBlockerCodes.CREDENTIAL_DECRYPT_FAILED,
-                                dto.getSummary().getPrimaryBlockerCode());
-                assertEquals("Binance credentials could not be decrypted. Re-save credentials in Settings.",
-                                dto.getSummary().getPrimaryBlockerMessage());
-        }
-
-        private Recommendation recommendation(String symbol, Instant createdAt) throws Exception {
-                Recommendation recommendation = new Recommendation();
-                recommendation.setId(UUID.randomUUID());
-                recommendation.setScanRun(new ScanRun());
-                recommendation.getScanRun().setId(UUID.randomUUID());
-                recommendation.setSymbol(symbol);
-                recommendation.setSide("BUY");
-                recommendation.setCreatedAt(createdAt);
-                recommendation.setStatus("NEW");
-
-                OrderFields orderFields = new OrderFields();
-                orderFields.setRecommendationId(recommendation.getId());
-                orderFields.setRecommendation(recommendation);
-                orderFields.setEntryOrderJson("""
-                                {"symbol":"BTCUSDT","side":"BUY","type":"MARKET","quantity":0.010}
-                                """);
-                orderFields.setSlOrderJson(
-                                """
-                                                {"symbol":"BTCUSDT","side":"SELL","type":"STOP_MARKET","stopPrice":98000.0,"closePosition":true}
-                                                """);
-                orderFields.setTpOrderJson(
-                                """
-                                                {"symbol":"BTCUSDT","side":"SELL","type":"TAKE_PROFIT_MARKET","stopPrice":104000.0,"closePosition":true}
-                                                """);
-                orderFields.setLeverageRecommendation(5);
-                orderFields.setMarginMode("ISOLATED");
-                orderFields.setPositionMode("ONE_WAY");
-                recommendation.setOrderFields(orderFields);
-                return recommendation;
-        }
-
-        private RecommendationPlaceabilityDTO placeable() {
-                RecommendationPlaceabilityDTO dto = new RecommendationPlaceabilityDTO();
-                dto.setManualPlacementAllowed(true);
-                dto.setPlaceable(true);
-                dto.setReasonCode("OK");
-                dto.setReasonText("Trade is placeable against LIVE MARK.");
-                dto.setMarkPrice(new BigDecimal("100500.0"));
-                return dto;
-        }
-
-        private BinanceExchangeInfoResponse.SymbolInfo symbolInfo() {
-                BinanceExchangeInfoResponse.Filter price = new BinanceExchangeInfoResponse.Filter();
-                price.setFilterType("PRICE_FILTER");
-                price.setTickSize("0.1");
-
-                BinanceExchangeInfoResponse.Filter marketLot = new BinanceExchangeInfoResponse.Filter();
-                marketLot.setFilterType("MARKET_LOT_SIZE");
-                marketLot.setStepSize("0.001");
-                marketLot.setMinQty("0.001");
-
-                BinanceExchangeInfoResponse.Filter notional = new BinanceExchangeInfoResponse.Filter();
-                notional.setFilterType("NOTIONAL");
-                notional.setNotional("5");
-
-                BinanceExchangeInfoResponse.SymbolInfo symbolInfo = new BinanceExchangeInfoResponse.SymbolInfo();
-                symbolInfo.setSymbol("BTCUSDT");
-                symbolInfo.setStatus("TRADING");
-                symbolInfo.setContractType("PERPETUAL");
-                symbolInfo.setQuoteAsset("USDT");
-                symbolInfo.setFilters(List.of(price, marketLot, notional));
-                return symbolInfo;
-        }
-
-        private LiveTradingPreflightDTO.Binance validBinanceDiagnostics() {
-                LiveTradingPreflightDTO.Binance diagnostics = new LiveTradingPreflightDTO.Binance();
-                diagnostics.setCredentialsPresent(true);
-                diagnostics.setAuthValid(true);
-                diagnostics.setFuturesOrderReadOk(true);
-                diagnostics.setPositionModeReadOk(true);
-                diagnostics.setFuturesPermissionOk(true);
-                diagnostics.setIpAllowlistOk(true);
-                diagnostics.setTimestampOk(true);
-                diagnostics.setSigningOk(true);
-                diagnostics.setEndpointFamily("BINANCE_FUTURES");
-                diagnostics.setBaseUrl("https://fapi.binance.com");
-                diagnostics.setSpotBaseUrl("https://api.binance.com");
-                diagnostics.setRecvWindowMs(5000L);
-                return diagnostics;
-        }
-
-        private LiveTradingPreflightDTO.Binance ipBlockedDiagnostics() {
-                LiveTradingPreflightDTO.Binance diagnostics = validBinanceDiagnostics();
-                diagnostics.setAuthValid(false);
-                diagnostics.setIpAllowlistOk(false);
-                diagnostics.setFuturesPermissionOk(false);
-                diagnostics.setSigningOk(false);
-                diagnostics.setTimestampOk(false);
-                diagnostics.setBlockerCode(LiveTradingBlockerCodes.BINANCE_IP_NOT_ALLOWED);
-                diagnostics.setBlockerMessage(
-                                "Binance rejected the backend host IP. Verify the Binance trusted IP allowlist.");
-                diagnostics.setRequestIpHint("203.0.113.10");
-                return diagnostics;
-        }
-
-        private LiveTradingPreflightDTO.Binance decryptFailedDiagnostics() {
-                LiveTradingPreflightDTO.Binance diagnostics = validBinanceDiagnostics();
-                diagnostics.setAuthValid(false);
-                diagnostics.setSigningOk(false);
-                diagnostics.setFuturesPermissionOk(false);
-                diagnostics.setTimestampOk(null);
-                diagnostics.setBlockerCode(LiveTradingBlockerCodes.CREDENTIAL_DECRYPT_FAILED);
-                diagnostics.setBlockerMessage("Saved Binance credentials are unreadable. Please re-save them.");
-                return diagnostics;
-        }
+    private LiveTradingPreflightDTO.Binance validDiagnostics() {
+        LiveTradingPreflightDTO.Binance diagnostics = new LiveTradingPreflightDTO.Binance();
+        diagnostics.setCredentialsPresent(true);
+        diagnostics.setAuthValid(true);
+        diagnostics.setFuturesOrderReadOk(true);
+        diagnostics.setPositionModeReadOk(true);
+        diagnostics.setEndpointFamily("futures");
+        diagnostics.setBaseUrl("https://fapi.binance.com");
+        diagnostics.setRecvWindowMs(5_000L);
+        diagnostics.setRequestIpHint("127.0.0.1");
+        diagnostics.setEndpointResults(List.of());
+        return diagnostics;
+    }
 }

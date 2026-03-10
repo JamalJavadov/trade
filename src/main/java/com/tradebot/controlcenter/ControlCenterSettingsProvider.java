@@ -14,6 +14,7 @@ import com.tradebot.operator.OperatorPermissionRepository;
 import com.tradebot.operator.PermissionCatalog;
 import com.tradebot.repository.AppSettingsRepository;
 import com.tradebot.repository.ControlCenterStateRepository;
+import com.tradebot.service.BudgetTargetAutoExecutionLifecycleService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,7 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
     private static final BigDecimal MAX_BUDGET_PCT = new BigDecimal("20.0");
     private static final BigDecimal LOCKED_EQUITY_CAP = BigDecimal.ONE;
     private static final BigDecimal LOCKED_MIN_RR = new BigDecimal("2.0");
+    private static final int LOCKED_AUTO_SESSION_MAX_ACTIVE_TRADES = 3;
     private static final Duration DB_LOAD_RETRY_BACKOFF = Duration.ofSeconds(30);
     private static final String LIVE_EXECUTION_PERMISSION = "live.execution.enabled";
     private static final List<String> LEGACY_LIVE_EXECUTION_PERMISSIONS = List.of(
@@ -65,6 +67,7 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
     private final ObjectProvider<OperatorPermissionRepository> operatorPermissionRepositoryProvider;
     private final PermissionCatalog permissionCatalog;
     private final ObjectProvider<DemoTradingLifecycleService> demoTradingLifecycleServiceProvider;
+    private final ObjectProvider<BudgetTargetAutoExecutionLifecycleService> budgetTargetAutoExecutionLifecycleServiceProvider;
     private final ObjectMapper objectMapper;
     private final ControlCenterCache controlCenterCache;
     private volatile Instant nextDbLoadAttemptAt = Instant.EPOCH;
@@ -137,18 +140,36 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         return getConfigSnapshot().getLiveExecution().isReadOnly();
     }
 
+    public ControlCenterConfig.BudgetTargetAutoExecution getBudgetTargetAutoExecutionSettings() {
+        return deepCopy(getConfigSnapshot().getBudgetTargetAutoExecution());
+    }
+
     @Transactional
     public ControlCenterConfig patch(JsonNode patch, String reason, String actor) {
+        return patchInternal(patch, reason, actor, false);
+    }
+
+    @Transactional
+    public ControlCenterConfig patchOperational(JsonNode patch, String reason, String actor) {
+        return patchInternal(patch, reason, actor, true);
+    }
+
+    private ControlCenterConfig patchInternal(JsonNode patch, String reason, String actor, boolean allowOperationalPatch) {
         if (patch != null && !patch.isObject()) {
             throw new IllegalArgumentException("patch must be a JSON object");
+        }
+        if (!allowOperationalPatch) {
+            rejectDirectOperationalAutoSessionPatch(patch);
         }
 
         ControlCenterStateEntity entity = controlCenterStateRepository.findById(STATE_ID)
                 .orElseGet(this::bootstrapStateEntity);
         ControlCenterConfig current = parseConfig(entity.getConfigJson());
         boolean currentChanged = migrateLegacyLiveExecutionState(current, entity.getConfigJson())
+                || migrateLegacyBudgetTargetAutoExecutionState(current, entity.getConfigJson())
                 || normalizeAndValidate(current)
-                || hasLegacyLiveExecutionShape(entity.getConfigJson());
+                || hasLegacyLiveExecutionShape(entity.getConfigJson())
+                || hasLegacyBudgetTargetAutoExecutionShape(entity.getConfigJson());
 
         ObjectNode root = objectMapper.valueToTree(current);
         if (patch != null) {
@@ -170,6 +191,7 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         }
 
         boolean demoEnabledChanged = current.getDemoTrading().isEnabled() != merged.getDemoTrading().isEnabled();
+        boolean autoSessionSyncRequired = autoSessionSyncRequired(current, merged);
 
         entity.setConfigJson(writeJson(merged));
         entity.setUpdatedAt(Instant.now());
@@ -181,6 +203,13 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
 
         if (demoEnabledChanged) {
             DemoTradingLifecycleService lifecycleService = demoTradingLifecycleServiceProvider.getIfAvailable();
+            if (lifecycleService != null) {
+                lifecycleService.syncRuntimeWithControlCenter();
+            }
+        }
+        if (autoSessionSyncRequired) {
+            BudgetTargetAutoExecutionLifecycleService lifecycleService = budgetTargetAutoExecutionLifecycleServiceProvider
+                    .getIfAvailable();
             if (lifecycleService != null) {
                 lifecycleService.syncRuntimeWithControlCenter();
             }
@@ -334,6 +363,11 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         if (lifecycleService != null) {
             lifecycleService.syncRuntimeWithControlCenter();
         }
+        BudgetTargetAutoExecutionLifecycleService autoLifecycleService = budgetTargetAutoExecutionLifecycleServiceProvider
+                .getIfAvailable();
+        if (autoLifecycleService != null) {
+            autoLifecycleService.syncRuntimeWithControlCenter();
+        }
     }
 
     private String auditValue(String actor, String reason) {
@@ -342,6 +376,37 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
             return base;
         }
         return base + " | " + reason.trim();
+    }
+
+    private void rejectDirectOperationalAutoSessionPatch(JsonNode patch) {
+        if (patch == null || !patch.isObject()) {
+            return;
+        }
+        JsonNode auto = patch.path("budgetTargetAutoExecution");
+        if (auto.isObject() && auto.has("armed")) {
+            throw new IllegalArgumentException(
+                    "budgetTargetAutoExecution.armed may only be changed via the budget-target command endpoint");
+        }
+    }
+
+    private boolean autoSessionSyncRequired(ControlCenterConfig current, ControlCenterConfig merged) {
+        ControlCenterConfig.BudgetTargetAutoExecution currentAuto = current.getBudgetTargetAutoExecution();
+        ControlCenterConfig.BudgetTargetAutoExecution mergedAuto = merged.getBudgetTargetAutoExecution();
+        return current.getLiveExecution().isReadOnly() != merged.getLiveExecution().isReadOnly()
+                || permissionFlag(current, LIVE_EXECUTION_PERMISSION) != permissionFlag(merged, LIVE_EXECUTION_PERMISSION)
+                || currentAuto.isEnabled() != mergedAuto.isEnabled()
+                || currentAuto.isReadOnly() != mergedAuto.isReadOnly()
+                || currentAuto.isKillSwitch() != mergedAuto.isKillSwitch()
+                || currentAuto.isAllowNewSessionStart() != mergedAuto.isAllowNewSessionStart()
+                || currentAuto.isAllowCloseAllOnTarget() != mergedAuto.isAllowCloseAllOnTarget()
+                || currentAuto.isRequireBinanceHealthPass() != mergedAuto.isRequireBinanceHealthPass()
+                || currentAuto.getMaxConcurrentPositions() != mergedAuto.getMaxConcurrentPositions()
+                || currentAuto.getSessionTimeoutMinutes() != mergedAuto.getSessionTimeoutMinutes();
+    }
+
+    private boolean permissionFlag(ControlCenterConfig config, String key) {
+        Boolean enabled = config.getPermissions().get(key);
+        return enabled == null || enabled;
     }
 
     private ControlCenterCache.CachedState loadStateFromDb() {
@@ -356,8 +421,10 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
             ControlCenterConfig config = parseConfig(entity.getConfigJson());
 
             boolean changed = migrateLegacyLiveExecutionState(config, entity.getConfigJson())
+                    || migrateLegacyBudgetTargetAutoExecutionState(config, entity.getConfigJson())
                     || normalizeAndValidate(config)
-                    || hasLegacyLiveExecutionShape(entity.getConfigJson());
+                    || hasLegacyLiveExecutionShape(entity.getConfigJson())
+                    || hasLegacyBudgetTargetAutoExecutionShape(entity.getConfigJson());
             if (changed) {
                 entity.setConfigJson(writeJson(config));
                 entity.setUpdatedAt(Instant.now());
@@ -460,6 +527,19 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
         config.getDemoTrading().setTimeStopMinutes(90);
 
         config.getLiveExecution().setReadOnly(false);
+
+        config.getBudgetTargetAutoExecution().setEnabled(false);
+        config.getBudgetTargetAutoExecution().setArmed(false);
+        config.getBudgetTargetAutoExecution().setReadOnly(false);
+        config.getBudgetTargetAutoExecution().setDefaultBudgetUsdt(new BigDecimal("50"));
+        config.getBudgetTargetAutoExecution().setDefaultTargetProfitUsdt(new BigDecimal("10"));
+        config.getBudgetTargetAutoExecution().setMaxConcurrentPositions(LOCKED_AUTO_SESSION_MAX_ACTIVE_TRADES);
+        config.getBudgetTargetAutoExecution().setAllowNewSessionStart(true);
+        config.getBudgetTargetAutoExecution().setAllowCloseAllOnTarget(true);
+        config.getBudgetTargetAutoExecution().setKillSwitch(false);
+        config.getBudgetTargetAutoExecution().setRequireBinanceHealthPass(true);
+        config.getBudgetTargetAutoExecution().setRequireOperatorConfirmationForStop(true);
+        config.getBudgetTargetAutoExecution().setSessionTimeoutMinutes(240);
 
         config.getStrategyLocks().setExecutionTf("15m");
         config.getStrategyLocks().setBiasTf("1h");
@@ -575,6 +655,23 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
                 || config.getAlerts().getVolume().compareTo(BigDecimal.ZERO) < 0
                 || config.getAlerts().getVolume().compareTo(BigDecimal.ONE) > 0) {
             throw new IllegalArgumentException("alerts.volume must be between 0 and 1");
+        }
+
+        if (config.getBudgetTargetAutoExecution().getDefaultBudgetUsdt() == null
+                || config.getBudgetTargetAutoExecution().getDefaultBudgetUsdt().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("budgetTargetAutoExecution.defaultBudgetUsdt must be greater than 0");
+        }
+
+        if (config.getBudgetTargetAutoExecution().getDefaultTargetProfitUsdt() == null
+                || config.getBudgetTargetAutoExecution().getDefaultTargetProfitUsdt().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(
+                    "budgetTargetAutoExecution.defaultTargetProfitUsdt must be greater than 0");
+        }
+
+        changed = config.getBudgetTargetAutoExecution().normalizeLockedInvariants() || changed;
+
+        if (config.getBudgetTargetAutoExecution().getSessionTimeoutMinutes() < 1) {
+            throw new IllegalArgumentException("budgetTargetAutoExecution.sessionTimeoutMinutes must be at least 1");
         }
 
         if (config.getDemoTrading().getIntervalMinutes() < 1) {
@@ -744,6 +841,68 @@ public class ControlCenterSettingsProvider implements PermissionProvider,
                 }
             }
 
+            return changed;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean hasLegacyBudgetTargetAutoExecutionShape(String json) {
+        if (json == null || json.isBlank()) {
+            return false;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            JsonNode auto = root.path("budgetTargetAutoExecution");
+            if (!auto.isObject()) {
+                return false;
+            }
+            return auto.has("sessionBudgetUsdt")
+                    || auto.has("finalTargetNetProfitUsdt")
+                    || auto.has("maxActiveTrades")
+                    || !auto.has("armed")
+                    || !auto.has("defaultBudgetUsdt")
+                    || !auto.has("defaultTargetProfitUsdt")
+                    || !auto.has("maxConcurrentPositions")
+                    || !auto.has("allowNewSessionStart")
+                    || !auto.has("allowCloseAllOnTarget")
+                    || !auto.has("killSwitch")
+                    || !auto.has("requireBinanceHealthPass")
+                    || !auto.has("requireOperatorConfirmationForStop")
+                    || !auto.has("sessionTimeoutMinutes");
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean migrateLegacyBudgetTargetAutoExecutionState(ControlCenterConfig config, String json) {
+        if (config == null || json == null || json.isBlank()) {
+            return false;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            JsonNode auto = root.path("budgetTargetAutoExecution");
+            if (!auto.isObject()) {
+                return false;
+            }
+
+            boolean changed = false;
+            if (!auto.has("armed") && auto.has("enabled") && auto.get("enabled").isBoolean()) {
+                boolean armed = auto.get("enabled").asBoolean(false);
+                if (config.getBudgetTargetAutoExecution().isArmed() != armed) {
+                    config.getBudgetTargetAutoExecution().setArmed(armed);
+                    changed = true;
+                }
+            }
+            if (auto.has("sessionBudgetUsdt") && !auto.has("defaultBudgetUsdt")) {
+                changed = true;
+            }
+            if (auto.has("finalTargetNetProfitUsdt") && !auto.has("defaultTargetProfitUsdt")) {
+                changed = true;
+            }
+            if (auto.has("maxActiveTrades") && !auto.has("maxConcurrentPositions")) {
+                changed = true;
+            }
             return changed;
         } catch (Exception ex) {
             return false;

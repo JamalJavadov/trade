@@ -71,6 +71,7 @@ public class ScanOrchestrator {
     private static final String STATUS_FAILED = "FAILED";
     private static final String TRIGGER_MANUAL = "MANUAL";
     private static final String TRIGGER_SCHEDULED = "SCHEDULED";
+    private static final String TRIGGER_AUTO_SESSION = "AUTO_SESSION";
     private static final String ERROR_CODE_WORKER_RESTART = "WORKER_RESTART";
     private static final String ERROR_CODE_PIPELINE_FAILED = "SCAN_PIPELINE_FAILED";
     private static final String ERROR_CODE_WORKER_UNAVAILABLE = "SCANNER_DOWN";
@@ -148,7 +149,7 @@ public class ScanOrchestrator {
 
     public ScanStartResult runOnce(String correlationId) {
         ControlCenterConfig settings = controlCenterSettingsProvider.getConfigSnapshot();
-        ScanStartResult result = tryStartRun(settings, TRIGGER_MANUAL, null, normalizeCorrelationId(correlationId));
+        ScanStartResult result = tryStartRun(settings, TRIGGER_MANUAL, null, normalizeCorrelationId(correlationId), null);
         if (result.startedNew()) {
             log.info("Manual scan run started: runId={}", result.scanRunId());
         } else {
@@ -157,14 +158,32 @@ public class ScanOrchestrator {
         return result;
     }
 
+    public ScanStartResult runAutoSession(String correlationId, BigDecimal budgetOverrideUsdt) {
+        ControlCenterConfig settings = controlCenterSettingsProvider.getConfigSnapshot();
+        ScanStartResult result = tryStartRun(settings,
+                TRIGGER_AUTO_SESSION,
+                null,
+                normalizeCorrelationId(correlationId),
+                budgetOverrideUsdt);
+        if (result.startedNew()) {
+            log.info("Auto-session scan run started: runId={}, budgetOverrideUsdt={}",
+                    result.scanRunId(), budgetOverrideUsdt);
+        } else {
+            log.info("Auto-session scan request deduplicated: runId={}, status={}",
+                    result.scanRunId(), result.status());
+        }
+        return result;
+    }
+
     private ScanStartResult tryStartScheduledRun(ControlCenterConfig settings, String correlationId, String dedupKey) {
-        return tryStartRun(settings, TRIGGER_SCHEDULED, dedupKey, normalizeCorrelationId(correlationId));
+        return tryStartRun(settings, TRIGGER_SCHEDULED, dedupKey, normalizeCorrelationId(correlationId), null);
     }
 
     private ScanStartResult tryStartRun(ControlCenterConfig settings,
             String triggerType,
             String dedupKey,
-            String correlationId) {
+            String correlationId,
+            BigDecimal budgetOverrideUsdt) {
         synchronized (runStartMonitor) {
             ScanRun running = scanRunRepository.findFirstByStatusOrderByStartedAtDesc(STATUS_STARTED).orElse(null);
             if (running != null && isStaleRun(running)) {
@@ -198,18 +217,18 @@ public class ScanOrchestrator {
                 throw ex;
             }
 
-            dispatchRun(run);
+            dispatchRun(run, budgetOverrideUsdt);
             return new ScanStartResult(run.getId(), true, STATUS_STARTED);
         }
     }
 
-    private void dispatchRun(ScanRun run) {
+    private void dispatchRun(ScanRun run, BigDecimal budgetOverrideUsdt) {
         scanRunning.set(true);
         try {
             scanTaskExecutor.execute(() -> {
                 String traceId = normalizeCorrelationId(run.getCorrelationId());
                 try (MDC.MDCCloseable ignored = MDC.putCloseable("traceId", traceId)) {
-                    runPipeline(run);
+                    runPipeline(run, budgetOverrideUsdt);
                 } finally {
                     scanRunning.set(false);
                 }
@@ -278,12 +297,12 @@ public class ScanOrchestrator {
         return run.getStartedAt().plus(STALE_RUN_TIMEOUT).isBefore(Instant.now());
     }
 
-    private void runPipeline(ScanRun run) {
+    private void runPipeline(ScanRun run, BigDecimal budgetOverrideUsdt) {
         final UUID scanRunId = run.getId();
         final String traceId = normalizeCorrelationId(run.getCorrelationId());
 
         ControlCenterConfig controlCenterConfig = controlCenterSettingsProvider.getConfigSnapshot();
-        AppProperties runtimeProperties = buildRuntimeAppProperties(controlCenterConfig);
+        AppProperties runtimeProperties = buildRuntimeAppProperties(controlCenterConfig, budgetOverrideUsdt);
         StrategyTuningConfig tuningConfig = strategyConfigProvider.getActiveConfig();
         int validCount = 0;
         int noTradeCount = 0;
@@ -532,14 +551,17 @@ public class ScanOrchestrator {
                 "error", safeNotes));
     }
 
-    private AppProperties buildRuntimeAppProperties(ControlCenterConfig controlCenterConfig) {
+    private AppProperties buildRuntimeAppProperties(ControlCenterConfig controlCenterConfig,
+            BigDecimal budgetOverrideUsdt) {
         AppProperties runtime = new AppProperties();
         runtime.setLeverage(appProperties.getLeverage());
         runtime.setWorkingType(appProperties.getWorkingType());
         runtime.getScanner().setTopN(appProperties.getScanner().getTopN());
         runtime.getScanner().setIntervalMinutes(controlCenterConfig.getScan().getIntervalMinutes());
 
-        runtime.getBudget().setUsdt(controlCenterConfig.getRisk().getBudgetUsdt());
+        runtime.getBudget().setUsdt(budgetOverrideUsdt != null && budgetOverrideUsdt.compareTo(BigDecimal.ZERO) > 0
+                ? budgetOverrideUsdt
+                : controlCenterConfig.getRisk().getBudgetUsdt());
 
         runtime.getRisk().setMaxBudgetPct(controlCenterConfig.getRisk().getMaxBudgetPct());
         runtime.getRisk().setEquityOverrideUsdt(controlCenterConfig.getRisk().getEquityOverrideUsdt());

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:39" hostname="CamaltekiMacBook-Pro.local" time="0.043">
+  <properties/>
+  <testcase name="turnOnLeavesSessionArmedWhenLiveExecutionCapabilityIsDisabled()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.022"/>
+  <testcase name="completeSessionUsesCancelledWhenNothingOpened()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.002"/>
+  <testcase name="recordExecutionFailureFailsSessionAfterThreshold()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.002"/>
+  <testcase name="turnOnRejectsWhenNewSessionStartsAreDisabled()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.001"/>
+  <testcase name="turnOnRejectsWhenAnotherSessionIsAlreadyActive()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.0"/>
+  <testcase name="turnOnRejectsNonPositiveRequestedBudget()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.001"/>
+  <testcase name="turnOnRejectsWhenFeatureIsDisabled()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.001"/>
+  <testcase name="turnOnRejectsNonPositiveRequestedTarget()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.0"/>
+  <testcase name="turnOnCreatesDraftThenArmedAndPromotesToRunningWhenChecksPass()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.004"/>
+  <testcase name="turnOffTransitionsActiveSessionToStoppingWithStructuredOperatorStopReason()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.003"/>
+  <testcase name="completeSessionUsesTargetReachedWhenProfitGoalTriggered()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.003"/>
+  <testcase name="turnOnRejectsWhenKillSwitchIsEnabled()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.001"/>
+  <testcase name="turnOffRequiresExplicitConfirmStopWhenConfigured()" classname="com.tradebot.BudgetTargetAutoExecutionLifecycleServiceTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

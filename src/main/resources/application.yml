@@ -5,14 +5,16 @@ spring:
     password: Cavadov15.
     driver-class-name: org.postgresql.Driver
     hikari:
+      pool-name: tradebot-hikari
       connection-timeout: 5000
       validation-timeout: 2000
-      initialization-fail-timeout: -1
+      initialization-fail-timeout: 10000
       maximum-pool-size: 10
       minimum-idle: 1
   flyway:
     enabled: true
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: none
     database-platform: org.hibernate.dialect.PostgreSQLDialect

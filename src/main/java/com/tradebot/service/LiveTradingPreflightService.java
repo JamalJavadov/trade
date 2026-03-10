@@ -1,17 +1,13 @@
 package com.tradebot.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tradebot.client.BinanceClient;
-import com.tradebot.config.AppProperties;
-import com.tradebot.controlcenter.ControlCenterSettingsProvider;
-import com.tradebot.dto.BinanceOrderFieldsDTO;
 import com.tradebot.dto.LiveTradeBlockedReasonDTO;
 import com.tradebot.dto.LiveTradingPreflightDTO;
 import com.tradebot.dto.RecommendationPlaceabilityDTO;
 import com.tradebot.entity.LiveTradeExecution;
 import com.tradebot.entity.LiveTradeExecutionState;
-import com.tradebot.entity.OrderFields;
 import com.tradebot.entity.Recommendation;
+import com.tradebot.controlcenter.ControlCenterSettingsProvider;
 import com.tradebot.operator.OperatorPermissionService;
 import com.tradebot.repository.LiveTradeExecutionRepository;
 import com.tradebot.repository.RecommendationRepository;
@@ -19,8 +15,6 @@ import com.tradebot.security.LocalMutationGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -37,29 +31,25 @@ public class LiveTradingPreflightService {
 
     private static final long RECOMMENDATION_STALE_THRESHOLD_SECONDS = Duration.of(15, ChronoUnit.MINUTES).toSeconds();
     private static final List<LiveTradeExecutionState> DUPLICATE_BLOCK_STATES = List.of(
-            LiveTradeExecutionState.REQUESTED,
-            LiveTradeExecutionState.SUBMITTING,
+            LiveTradeExecutionState.CREATED,
+            LiveTradeExecutionState.PREFLIGHT_VALIDATING,
+            LiveTradeExecutionState.ENTRY_SUBMITTING,
             LiveTradeExecutionState.ENTRY_SUBMITTED,
-            LiveTradeExecutionState.ENTRY_PARTIALLY_FILLED,
             LiveTradeExecutionState.ENTRY_FILLED,
             LiveTradeExecutionState.PROTECTION_SUBMITTING,
-            LiveTradeExecutionState.PROTECTION_SUBMITTED,
             LiveTradeExecutionState.PROTECTION_ACTIVE,
-            LiveTradeExecutionState.OPEN,
+            LiveTradeExecutionState.ACTIVE,
+            LiveTradeExecutionState.CLOSING,
             LiveTradeExecutionState.RECONCILING,
-            LiveTradeExecutionState.PENDING_RECONCILE,
-            LiveTradeExecutionState.PROTECTION_FAILED,
-            LiveTradeExecutionState.EMERGENCY_CLOSE_SUBMITTED);
+            LiveTradeExecutionState.FAILED);
 
     private final RecommendationRepository recommendationRepository;
     private final LiveTradeExecutionRepository liveTradeExecutionRepository;
     private final RecommendationPlaceabilityService recommendationPlaceabilityService;
-    private final BinanceClient binanceClient;
     private final LiveTradingBinanceDiagnosticsService liveTradingBinanceDiagnosticsService;
     private final OperatorPermissionService operatorPermissionService;
     private final ControlCenterSettingsProvider controlCenterSettingsProvider;
-    private final ObjectMapper objectMapper;
-    private final AppProperties appProperties;
+    private final ExchangeExecutionPreflightService exchangeExecutionPreflightService;
 
     public LiveTradingPreflightDTO evaluate(UUID recommendationId) {
         return evaluate(recommendationId, null, null);
@@ -72,7 +62,7 @@ public class LiveTradingPreflightService {
     public LiveTradingPreflightDTO evaluate(UUID recommendationId,
             UUID ignoreExecutionId,
             LocalMutationGuard.LocalRequestCheck localRequestCheck) {
-        Recommendation recommendation = recommendationRepository.findById(recommendationId)
+        Recommendation recommendation = recommendationRepository.findDetailedById(recommendationId)
                 .orElseThrow(() -> new NoSuchElementException("Recommendation not found: " + recommendationId));
 
         LiveTradingPreflightDTO dto = new LiveTradingPreflightDTO();
@@ -207,122 +197,16 @@ public class LiveTradingPreflightService {
     }
 
     private void populateExchangeValidation(LiveTradingPreflightDTO dto, Recommendation recommendation) {
-        OrderPayloads payloads = parseOrderPayloads(recommendation.getOrderFields());
-        if (payloads == null) {
-            dto.getExchangeValidation().setValid(false);
-            dto.getExchangeValidation().getFailures().add("Recommendation order payloads are missing or invalid.");
+        ExchangeExecutionPreflightService.ExchangeExecutionPreflightResult result =
+                exchangeExecutionPreflightService.evaluate(recommendation, dto.getPlaceability());
+        exchangeExecutionPreflightService.applyTo(dto, result);
+        if (!result.valid()) {
             addBlocked(dto,
-                    LiveTradingBlockerCodes.MISSING_ORDER_FIELDS,
-                    "Recommendation order payloads are missing or invalid.",
+                    LiveTradingBlockerCodes.EXCHANGE_FILTER_INVALID,
+                    result.failures().getFirst(),
                     "exchangeValidation",
-                    Map.of());
-            return;
+                    result.details());
         }
-
-        Optional<com.tradebot.dto.BinanceExchangeInfoResponse.SymbolInfo> symbolInfoOptional = binanceClient
-                .getSymbolInfo(recommendation.getSymbol());
-        if (symbolInfoOptional.isEmpty()) {
-            addExchangeFailure(dto, "Symbol is not present in Binance Futures exchange info.");
-            finalizeExchangeFailure(dto);
-            return;
-        }
-
-        com.tradebot.dto.BinanceExchangeInfoResponse.SymbolInfo symbolInfo = symbolInfoOptional.get();
-        if (!"TRADING".equalsIgnoreCase(symbolInfo.getStatus())) {
-            addExchangeFailure(dto, "Symbol is not currently tradable on Binance Futures.");
-        }
-        if (!"PERPETUAL".equalsIgnoreCase(symbolInfo.getContractType())
-                || !"USDT".equalsIgnoreCase(symbolInfo.getQuoteAsset())) {
-            addExchangeFailure(dto, "Symbol is not a USDT perpetual futures contract.");
-        }
-
-        BigDecimal markPrice = toBigDecimal(
-                dto.getPlaceability() != null ? dto.getPlaceability().getMarkPrice() : null);
-        if (markPrice == null) {
-            try {
-                markPrice = binanceClient.getMarkPrice(recommendation.getSymbol());
-            } catch (Exception ex) {
-                addExchangeFailure(dto, "Live mark price is unavailable for execution preflight.");
-            }
-        }
-
-        BigDecimal tickSize = nonZero(symbolInfo.getTickSize());
-        BigDecimal stepSize = nonZero(symbolInfo.getMarketStepSize());
-        if (stepSize == null) {
-            stepSize = nonZero(symbolInfo.getStepSize());
-        }
-        BigDecimal minQty = nonZero(symbolInfo.getMarketMinQty());
-        if (minQty == null) {
-            minQty = nonZero(symbolInfo.getMinQty());
-        }
-        BigDecimal minNotional = nonZero(symbolInfo.getMinNotional());
-
-        dto.getExchangeValidation().setMarkPrice(markPrice);
-        dto.getExchangeValidation().setTickSize(tickSize);
-        dto.getExchangeValidation().setStepSize(stepSize);
-        dto.getExchangeValidation().setMinQty(minQty);
-        dto.getExchangeValidation().setMinNotional(minNotional);
-        dto.getExchangeValidation().setQuantity(payloads.entry().getQuantity());
-        dto.getExchangeValidation().setSlStopPrice(payloads.sl().getStopPrice());
-        dto.getExchangeValidation().setTpStopPrice(payloads.tp().getStopPrice());
-        dto.getExchangeValidation().setLeverage(recommendation.getOrderFields() != null
-                ? recommendation.getOrderFields().getLeverageRecommendation()
-                : appProperties.getLeverage());
-        dto.getExchangeValidation().setMarginMode(recommendation.getOrderFields() != null
-                ? recommendation.getOrderFields().getMarginMode()
-                : null);
-        dto.getExchangeValidation().setPositionMode(recommendation.getOrderFields() != null
-                ? recommendation.getOrderFields().getPositionMode()
-                : null);
-
-        if (tickSize == null) {
-            addExchangeFailure(dto, "Binance price filter tick size is unavailable.");
-        }
-        if (stepSize == null) {
-            addExchangeFailure(dto, "Binance market lot size step is unavailable.");
-        }
-        if (minQty == null) {
-            addExchangeFailure(dto, "Binance minimum quantity rule is unavailable.");
-        }
-        if (payloads.entry().getQuantity() == null || payloads.entry().getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
-            addExchangeFailure(dto, "Entry quantity is missing or invalid.");
-        }
-        if (payloads.sl().getStopPrice() == null || payloads.tp().getStopPrice() == null) {
-            addExchangeFailure(dto, "Protection order stop prices are missing.");
-        }
-        if (!"ISOLATED".equalsIgnoreCase(dto.getExchangeValidation().getMarginMode())) {
-            addExchangeFailure(dto, "Execution requires isolated margin mode.");
-        }
-        if (!"ONE_WAY".equalsIgnoreCase(dto.getExchangeValidation().getPositionMode())) {
-            addExchangeFailure(dto, "Execution requires one-way position mode.");
-        }
-
-        if (tickSize != null && payloads.sl().getStopPrice() != null
-                && !alignsToIncrement(payloads.sl().getStopPrice(), tickSize)) {
-            addExchangeFailure(dto, "Stop-loss price does not match Binance tick size.");
-        }
-        if (tickSize != null && payloads.tp().getStopPrice() != null
-                && !alignsToIncrement(payloads.tp().getStopPrice(), tickSize)) {
-            addExchangeFailure(dto, "Take-profit price does not match Binance tick size.");
-        }
-        if (stepSize != null && payloads.entry().getQuantity() != null
-                && !alignsToIncrement(payloads.entry().getQuantity(), stepSize)) {
-            addExchangeFailure(dto, "Entry quantity does not match Binance market step size.");
-        }
-        if (minQty != null && payloads.entry().getQuantity() != null
-                && payloads.entry().getQuantity().compareTo(minQty) < 0) {
-            addExchangeFailure(dto, "Entry quantity is below Binance minimum quantity.");
-        }
-
-        if (markPrice != null && payloads.entry().getQuantity() != null) {
-            BigDecimal notional = markPrice.multiply(payloads.entry().getQuantity());
-            dto.getExchangeValidation().setEntryNotionalUsdt(notional);
-            if (minNotional != null && notional.compareTo(minNotional) < 0) {
-                addExchangeFailure(dto, "Entry notional is below Binance minimum notional.");
-            }
-        }
-
-        finalizeExchangeFailure(dto);
     }
 
     private void populateBinanceDiagnostics(LiveTradingPreflightDTO dto, String symbol) {
@@ -342,39 +226,6 @@ public class LiveTradingPreflightService {
                     diagnostics.getBlockerMessage(),
                     "binance",
                     details);
-        }
-    }
-
-    private void finalizeExchangeFailure(LiveTradingPreflightDTO dto) {
-        if (!dto.getExchangeValidation().getFailures().isEmpty()) {
-            dto.getExchangeValidation().setValid(false);
-            addBlocked(dto,
-                    LiveTradingBlockerCodes.EXCHANGE_FILTER_INVALID,
-                    dto.getExchangeValidation().getFailures().get(0),
-                    "exchangeValidation",
-                    detailsOf("failures", dto.getExchangeValidation().getFailures()));
-        }
-    }
-
-    private void addExchangeFailure(LiveTradingPreflightDTO dto, String message) {
-        dto.getExchangeValidation().setValid(false);
-        dto.getExchangeValidation().getFailures().add(message);
-    }
-
-    private OrderPayloads parseOrderPayloads(OrderFields orderFields) {
-        if (orderFields == null) {
-            return null;
-        }
-        try {
-            BinanceOrderFieldsDTO entry = objectMapper.readValue(orderFields.getEntryOrderJson(),
-                    BinanceOrderFieldsDTO.class);
-            BinanceOrderFieldsDTO sl = objectMapper.readValue(orderFields.getSlOrderJson(),
-                    BinanceOrderFieldsDTO.class);
-            BinanceOrderFieldsDTO tp = objectMapper.readValue(orderFields.getTpOrderJson(),
-                    BinanceOrderFieldsDTO.class);
-            return new OrderPayloads(entry, sl, tp);
-        } catch (Exception ex) {
-            return null;
         }
     }
 
@@ -460,35 +311,6 @@ public class LiveTradingPreflightService {
         dto.getBlockedReasons().add(new LiveTradeBlockedReasonDTO(code, message, source, details));
     }
 
-    private boolean alignsToIncrement(BigDecimal value, BigDecimal increment) {
-        if (value == null || increment == null || increment.compareTo(BigDecimal.ZERO) <= 0) {
-            return false;
-        }
-        BigDecimal normalized = value.divide(increment, 0, RoundingMode.DOWN).multiply(increment);
-        return normalized.compareTo(value) == 0;
-    }
-
-    private BigDecimal nonZero(BigDecimal value) {
-        if (value == null || value.compareTo(BigDecimal.ZERO) <= 0) {
-            return null;
-        }
-        return value;
-    }
-
-    private BigDecimal toBigDecimal(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof BigDecimal decimal) {
-            return decimal;
-        }
-        try {
-            return new BigDecimal(String.valueOf(value));
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
     private String safeText(String value, String fallback) {
         if (value == null || value.isBlank()) {
             return fallback;
@@ -512,8 +334,5 @@ public class LiveTradingPreflightService {
             }
         }
         return details;
-    }
-
-    private record OrderPayloads(BinanceOrderFieldsDTO entry, BinanceOrderFieldsDTO sl, BinanceOrderFieldsDTO tp) {
     }
 }

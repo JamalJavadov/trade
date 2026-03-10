@@ -3,6 +3,7 @@ import { StatusCard } from '../components/StatusCard';
 import { ScanButton } from '../components/ScanButton';
 import { RecommendationCard } from '../components/RecommendationCard';
 import { OperatorPanel } from '../components/OperatorPanel';
+import { BudgetTargetAutoExecutionCard } from '../components/dashboard/BudgetTargetAutoExecutionCard';
 import { RiskSettingsCard } from '../components/dashboard/RiskSettingsCard';
 import { AiModelSettingsCard } from '../components/settings/AiModelSettingsCard';
 import { Banner } from '../components/Banner';
@@ -95,6 +96,7 @@ export const DashboardPage: React.FC = () => {
                 <div className="md:col-span-2 space-y-6">
                     <StatusCard status={status} loading={statusLoading} />
                     <RiskSettingsCard />
+                    <BudgetTargetAutoExecutionCard />
                     <AiModelSettingsCard
                         title="AI Models (LIVE)"
                         subtitle="Allowlist-only routing for live suggestion batching."

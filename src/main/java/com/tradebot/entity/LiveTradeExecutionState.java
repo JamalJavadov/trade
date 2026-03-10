@@ -4,42 +4,37 @@ import java.util.EnumSet;
 import java.util.Set;
 
 public enum LiveTradeExecutionState {
-    REQUESTED,
-    BLOCKED,
-    DRY_RUN,
-    SUBMITTING,
+    CREATED,
+    PREFLIGHT_VALIDATING,
+    PREFLIGHT_REJECTED,
+    ENTRY_SUBMITTING,
     ENTRY_SUBMITTED,
-    ENTRY_PARTIALLY_FILLED,
     ENTRY_FILLED,
     PROTECTION_SUBMITTING,
-    PROTECTION_SUBMITTED,
     PROTECTION_ACTIVE,
-    OPEN,
+    ACTIVE,
+    CLOSING,
     RECONCILING,
-    PENDING_RECONCILE,
-    RECONCILED,
-    PROTECTION_FAILED,
-    EMERGENCY_CLOSE_SUBMITTED,
-    EMERGENCY_CLOSE_FILLED,
-    EMERGENCY_CLOSE_FAILED,
+    CLOSED,
     FAILED;
 
     private static final Set<LiveTradeExecutionState> ACTIVE_STATES = EnumSet.of(
-            REQUESTED,
-            SUBMITTING,
+            CREATED,
+            PREFLIGHT_VALIDATING,
+            ENTRY_SUBMITTING,
             ENTRY_SUBMITTED,
-            ENTRY_PARTIALLY_FILLED,
             ENTRY_FILLED,
             PROTECTION_SUBMITTING,
-            PROTECTION_SUBMITTED,
             PROTECTION_ACTIVE,
-            OPEN,
-            RECONCILING,
-            PENDING_RECONCILE,
-            PROTECTION_FAILED,
-            EMERGENCY_CLOSE_SUBMITTED);
+            ACTIVE,
+            CLOSING,
+            RECONCILING);
 
     public boolean isActive() {
         return ACTIVE_STATES.contains(this);
+    }
+
+    public boolean isTerminal() {
+        return this == PREFLIGHT_REJECTED || this == CLOSED || this == FAILED;
     }
 }

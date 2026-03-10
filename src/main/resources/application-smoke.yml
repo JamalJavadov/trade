@@ -1,0 +1,5 @@
+tradebot:
+  budget-target-auto-execution:
+    coordinator:
+      fixed-delay-ms: 1000
+      initial-delay-ms: 30000

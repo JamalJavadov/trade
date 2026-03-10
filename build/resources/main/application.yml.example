@@ -5,11 +5,14 @@ spring:
     password: tradebot-local-password
     driver-class-name: org.postgresql.Driver
     hikari:
+      pool-name: tradebot-hikari
       connection-timeout: 5000
       validation-timeout: 2000
-      initialization-fail-timeout: -1
+      initialization-fail-timeout: 10000
       maximum-pool-size: 10
       minimum-idle: 1
+  jpa:
+    open-in-view: false
 
 app:
   binance:

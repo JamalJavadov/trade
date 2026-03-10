@@ -9,6 +9,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -36,19 +38,61 @@ public class LiveTradeExecutionEvent {
     @Column(name = "event_type", nullable = false)
     private String eventType;
 
-    @Column(name = "event_status", nullable = false)
+    @Column(name = "event_status")
     private String eventStatus;
-
-    @Column(name = "message")
-    private String message;
 
     @Column(name = "error_code")
     private String errorCode;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "payload_json", columnDefinition = "jsonb")
-    private String payloadJson;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "event_category", nullable = false)
+    private BudgetTargetAuditEventCategory eventCategory = BudgetTargetAuditEventCategory.TRADE;
 
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "severity", nullable = false)
+    private BudgetTargetAuditSeverity severity = BudgetTargetAuditSeverity.INFO;
+
+    @Column(name = "actor", nullable = false)
+    private String actor = "system";
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "before_json", columnDefinition = "jsonb")
+    private String beforeJson;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "after_json", columnDefinition = "jsonb")
+    private String afterJson;
+
+    @Column(name = "notes")
+    private String notes;
+
+    @Column(name = "trace_id")
+    private String traceId;
+
+    @Column(name = "event_ts", nullable = false)
+    private Instant eventTs;
+
+    public String getMessage() {
+        return notes;
+    }
+
+    public void setMessage(String message) {
+        this.notes = message;
+    }
+
+    public String getPayloadJson() {
+        return afterJson;
+    }
+
+    public void setPayloadJson(String payloadJson) {
+        this.afterJson = payloadJson;
+    }
+
+    public Instant getCreatedAt() {
+        return eventTs;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.eventTs = createdAt;
+    }
 }

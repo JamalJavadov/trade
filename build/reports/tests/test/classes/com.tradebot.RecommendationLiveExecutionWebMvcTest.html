@@ -41,7 +41,7 @@
 </td>
 <td>
 <div class="infoBox" id="duration">
-<div class="counter">0.020s</div>
+<div class="counter">0.019s</div>
 <p>duration</p>
 </div>
 </td>
@@ -99,7 +99,7 @@
 </tr>
 <tr>
 <td class="success">executionPreflightPreservesCredentialDecryptFailureCode()</td>
-<td class="success">0.005s</td>
+<td class="success">0.004s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
@@ -112,8 +112,8 @@
 <div id="tab1" class="tab">
 <h2>Standard output</h2>
 <span class="code">
-<pre>2026-03-08T15:34:24.666+04:00  INFO 98901 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.RecommendationLiveExecutionWebMvcTest]: RecommendationLiveExecutionWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-2026-03-08T15:34:24.668+04:00  INFO 98901 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.RecommendationLiveExecutionWebMvcTest
+<pre>2026-03-09T23:39:41.239+04:00  INFO 84573 --- [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.tradebot.RecommendationLiveExecutionWebMvcTest]: RecommendationLiveExecutionWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-03-09T23:39:41.240+04:00  INFO 84573 --- [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.tradebot.TradeBotApplication for test class com.tradebot.RecommendationLiveExecutionWebMvcTest
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -123,15 +123,15 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.2.4)
 
-2026-03-08T15:34:24.675+04:00  INFO 98901 --- [    Test worker] .t.RecommendationLiveExecutionWebMvcTest : Starting RecommendationLiveExecutionWebMvcTest using Java 21.0.9 with PID 98901 (started by camal in /Users/camal/Documents/trade/trade bot)
-2026-03-08T15:34:24.675+04:00  INFO 98901 --- [    Test worker] .t.RecommendationLiveExecutionWebMvcTest : No active profile set, falling back to 1 default profile: &quot;default&quot;
-2026-03-08T15:34:24.752+04:00  INFO 98901 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
-2026-03-08T15:34:24.752+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
-2026-03-08T15:34:24.752+04:00  INFO 98901 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
-2026-03-08T15:34:24.755+04:00  INFO 98901 --- [    Test worker] .t.RecommendationLiveExecutionWebMvcTest : Started RecommendationLiveExecutionWebMvcTest in 0.086 seconds (process running for 4.541)
-2026-03-08T15:34:24.763+04:00  WARN 98901 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 16debab7-8a03-4375-bb82-4edf2ded279d] Forbidden permission at /api/v1/recommendations/00000000-0000-0000-0000-000000000102/execute-live: permission=live.execution.enabled
-2026-03-08T15:34:24.770+04:00  WARN 98901 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 5721e791-951c-45c3-aee5-ba14999ec622] Validation error at /api/v1/recommendations/00000000-0000-0000-0000-000000000106/execute-live: {clientRequestId=clientRequestId is required}
-2026-03-08T15:34:24.778+04:00  WARN 98901 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 28a2d2f9-0fa9-4511-b717-50182c7dc7ed] Forbidden non-local mutation at /api/v1/recommendations/00000000-0000-0000-0000-000000000103/execute-live remote=10.0.0.12 origin=https://remote-host
+2026-03-09T23:39:41.246+04:00  INFO 84573 --- [    Test worker] .t.RecommendationLiveExecutionWebMvcTest : Starting RecommendationLiveExecutionWebMvcTest using Java 21.0.9 with PID 84573 (started by camal in /Users/camal/Documents/making money/trade/trade bot)
+2026-03-09T23:39:41.246+04:00  INFO 84573 --- [    Test worker] .t.RecommendationLiveExecutionWebMvcTest : No active profile set, falling back to 1 default profile: &quot;default&quot;
+2026-03-09T23:39:41.310+04:00  INFO 84573 --- [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-03-09T23:39:41.310+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-03-09T23:39:41.310+04:00  INFO 84573 --- [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-03-09T23:39:41.312+04:00  INFO 84573 --- [    Test worker] .t.RecommendationLiveExecutionWebMvcTest : Started RecommendationLiveExecutionWebMvcTest in 0.071 seconds (process running for 5.061)
+2026-03-09T23:39:41.318+04:00  WARN 84573 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 5e4da401-0d31-42a1-8946-cbe46610f746] Forbidden permission at /api/v1/recommendations/00000000-0000-0000-0000-000000000102/execute-live: permission=live.execution.enabled
+2026-03-09T23:39:41.324+04:00  WARN 84573 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 0a872a9c-cc79-4066-9052-61ed837f936e] Validation error at /api/v1/recommendations/00000000-0000-0000-0000-000000000106/execute-live: {clientRequestId=clientRequestId is required}
+2026-03-09T23:39:41.331+04:00  WARN 84573 --- [    Test worker] c.t.exception.GlobalExceptionHandler     : [TraceID: 8fe83da4-369c-42e6-ada9-19d6f6c8a4ec] Forbidden non-local mutation at /api/v1/recommendations/00000000-0000-0000-0000-000000000103/execute-live remote=10.0.0.12 origin=https://remote-host
 </pre>
 </span>
 </div>
@@ -143,7 +143,7 @@
 <input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
 </label>
 </div>Generated by 
-<a href="http://www.gradle.org">Gradle 8.7</a> at Mar 8, 2026, 3:34:25 PM</p>
+<a href="http://www.gradle.org">Gradle 8.7</a> at Mar 9, 2026, 11:39:42 PM</p>
 </div>
 </div>
 </body>

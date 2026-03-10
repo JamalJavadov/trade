@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -52,7 +51,6 @@ public class DemoTradeMonitor {
         }
     }
 
-    @Transactional
     public DemoTrade cancelTrade(UUID tradeId) {
         DemoTrade trade = demoTradeRepository.findById(tradeId)
                 .orElseThrow(() -> new IllegalArgumentException("Demo trade not found: " + tradeId));
@@ -75,7 +73,6 @@ public class DemoTradeMonitor {
         }
     }
 
-    @Transactional
     protected void doTick() {
         List<DemoTrade> openTrades = demoTradeRepository.findByStatusOrderByOpenedAtAsc("OPEN");
         for (DemoTrade trade : openTrades) {

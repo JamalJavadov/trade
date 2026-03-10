@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.tradebot.service.scan.DeepScanPipelineServiceTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-08T11:34:25" hostname="CamaltekiMacBook-Pro.local" time="0.087">
+<testsuite name="com.tradebot.service.scan.DeepScanPipelineServiceTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-09T19:39:41" hostname="CamaltekiMacBook-Pro.local" time="0.102">
   <properties/>
-  <testcase name="aiUnavailableDoesNotBlockDeterministicEligibleCandidate()" classname="com.tradebot.service.scan.DeepScanPipelineServiceTest" time="0.087"/>
+  <testcase name="aiUnavailableDoesNotBlockDeterministicEligibleCandidate()" classname="com.tradebot.service.scan.DeepScanPipelineServiceTest" time="0.102"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

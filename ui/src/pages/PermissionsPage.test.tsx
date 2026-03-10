@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PermissionsPage } from './PermissionsPage';
@@ -103,6 +103,20 @@ const controlCenterState: ControlCenterStateResponse = {
         },
         liveExecution: {
             readOnly: true,
+        },
+        budgetTargetAutoExecution: {
+            enabled: true,
+            armed: false,
+            readOnly: false,
+            maxConcurrentPositions: 3,
+            defaultBudgetUsdt: 50,
+            defaultTargetProfitUsdt: 10,
+            allowNewSessionStart: true,
+            allowCloseAllOnTarget: true,
+            killSwitch: false,
+            requireBinanceHealthPass: true,
+            requireOperatorConfirmationForStop: true,
+            sessionTimeoutMinutes: 240,
         },
         strategyLocks: {
             executionTf: '15m',
@@ -284,10 +298,10 @@ describe('PermissionsPage autoscan runtime', () => {
             expect(getAutoScanStateMock).toHaveBeenCalledTimes(1);
         });
 
-        expect(screen.getByText('Autoscan Runtime')).toBeInTheDocument();
-        expect(screen.getByText('Scheduler')).toBeInTheDocument();
-        expect(screen.getByText('Recent Runs')).toBeInTheDocument();
-        expect(screen.getByText(/11111111 \| SCHEDULED \| FINISHED/)).toBeInTheDocument();
+        expect(await screen.findByText('Autoscan Runtime')).toBeInTheDocument();
+        expect(await screen.findByText('Scheduler')).toBeInTheDocument();
+        expect(await screen.findByText('Recent Runs')).toBeInTheDocument();
+        expect(await screen.findByText(/11111111 \| SCHEDULED \| FINISHED/)).toBeInTheDocument();
     });
 
     it('starts run-now and refreshes runtime snapshot', async () => {
@@ -375,8 +389,8 @@ describe('PermissionsPage autoscan runtime', () => {
         const runtimeHeader = await screen.findByText('Live Execution Runtime');
         const runtimeSection = runtimeHeader.closest('section');
 
-        const capabilityToggle = screen.getByRole('checkbox', { name: /Enable manual live execution/i });
-        const readOnlyToggle = screen.getByRole('checkbox', { name: /READ-ONLY mode/i });
+        const capabilityToggle = within(runtimeSection).getByRole('checkbox', { name: /Enable live execution runtime/i });
+        const readOnlyToggle = within(runtimeSection).getByRole('checkbox', { name: /READ-ONLY mode/i });
         expect(capabilityToggle).not.toBeChecked();
         expect(readOnlyToggle).toBeChecked();
 
@@ -397,6 +411,47 @@ describe('PermissionsPage autoscan runtime', () => {
                     readOnly: false,
                 },
             }, 'live-execution-runtime-save');
+        });
+    });
+
+    it('saves budget-target runtime defaults without patching armed directly', async () => {
+        const user = userEvent.setup();
+        render(<PermissionsPage />);
+
+        const sectionHeader = await screen.findByText('Budget Target Auto-Execution Runtime');
+        const section = sectionHeader.closest('section');
+        if (!section) {
+            throw new Error('Budget Target Auto-Execution Runtime section not found');
+        }
+
+        await user.click(within(section).getByRole('checkbox', { name: /Allow new session start/i }));
+        await user.click(within(section).getByRole('checkbox', { name: /Kill switch/i }));
+
+        fireEvent.change(within(section).getByRole('spinbutton', { name: /Default session budget/i }), {
+            target: { value: '88' },
+        });
+
+        expect(within(section).getByText('Always ON')).toBeInTheDocument();
+        expect(within(section).getByText(/coordinator and DB both enforce a maximum of 3 active positions/i)).toBeInTheDocument();
+
+        await user.click(within(section).getByRole('button', { name: 'Save auto-execution runtime' }));
+
+        await waitFor(() => {
+            expect(patchConfigMock).toHaveBeenCalledWith({
+                budgetTargetAutoExecution: {
+                    enabled: true,
+                    readOnly: false,
+                    maxConcurrentPositions: 3,
+                    defaultBudgetUsdt: 88,
+                    defaultTargetProfitUsdt: 10,
+                    allowNewSessionStart: false,
+                    allowCloseAllOnTarget: true,
+                    killSwitch: true,
+                    requireBinanceHealthPass: true,
+                    requireOperatorConfirmationForStop: true,
+                    sessionTimeoutMinutes: 240,
+                },
+            }, 'budget-target-auto-execution-runtime-save');
         });
     });
 });

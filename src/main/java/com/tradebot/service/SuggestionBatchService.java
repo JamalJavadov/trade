@@ -46,6 +46,9 @@ public class SuggestionBatchService {
 
     private static final int SAMPLE_TRADES = 10;
     private static final int AUDIT_TEXT_LIMIT = 16_000;
+    private static final int STATUS_MAX_LENGTH = 16;
+    private static final int SHORT_TEXT_MAX_LENGTH = 64;
+    private static final int MODEL_MAX_LENGTH = 255;
     private static final Set<String> RISK_LEVELS = Set.of("low", "medium", "high");
 
     private final ModelRouter modelRouter;
@@ -310,23 +313,23 @@ public class SuggestionBatchService {
         try {
             AiCallLog callLog = new AiCallLog();
             callLog.setCreatedAt(Instant.now());
-            callLog.setTaskType(AiTaskType.SUGGESTION_BATCH.name());
+            callLog.setTaskType(truncate(AiTaskType.SUGGESTION_BATCH.name(), SHORT_TEXT_MAX_LENGTH));
             callLog.setProvider(routeResult != null && routeResult.getProvider() != null
-                    ? routeResult.getProvider()
+                    ? truncate(routeResult.getProvider(), SHORT_TEXT_MAX_LENGTH)
                     : "openrouter.ai");
 
             String model = routeResult != null && routeResult.getModelUsed() != null
                     ? routeResult.getModelUsed()
                     : defaultLiveModel();
-            callLog.setModel(model);
-            callLog.setModelRequested(model);
-            callLog.setModelUsed(model);
-            callLog.setStatus(success ? "SUCCESS" : "FAILED");
-            callLog.setErrorCode(errorCode);
+            callLog.setModel(truncate(model, MODEL_MAX_LENGTH));
+            callLog.setModelRequested(truncate(model, MODEL_MAX_LENGTH));
+            callLog.setModelUsed(truncate(model, MODEL_MAX_LENGTH));
+            callLog.setStatus(truncate(success ? "SUCCESS" : "FAILED", STATUS_MAX_LENGTH));
+            callLog.setErrorCode(truncate(errorCode, SHORT_TEXT_MAX_LENGTH));
             callLog.setErrorMessage(sanitizeText(errorMessage));
             callLog.setHttpStatus(httpStatus);
             callLog.setLatencyMs(routeResult != null ? routeResult.getLatencyMs() : null);
-            callLog.setTraceId(traceId);
+            callLog.setTraceId(truncate(traceId, SHORT_TEXT_MAX_LENGTH));
             callLog.setPromptText(sanitizeText(prompt));
             callLog.setResponseText(sanitizeText(response != null ? response : errorMessage));
             Map<String, Object> promptJson = new LinkedHashMap<>();
@@ -396,6 +399,13 @@ public class SuggestionBatchService {
             return masked.substring(0, AUDIT_TEXT_LIMIT);
         }
         return masked;
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 
     private String defaultLiveModel() {
